@@ -53,11 +53,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ClickerMonkey/hitl.git"
+    "url": "git+https://github.com/ClickerMonkey/hitloop.git"
   },
-  "homepage": "https://github.com/ClickerMonkey/hitl#readme",
+  "homepage": "https://github.com/ClickerMonkey/hitloop#readme",
   "bugs": {
-    "url": "https://github.com/ClickerMonkey/hitl/issues"
+    "url": "https://github.com/ClickerMonkey/hitloop/issues"
   },
   "author": "ClickerMonkey",
   "devDependencies": {

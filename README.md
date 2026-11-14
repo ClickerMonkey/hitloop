@@ -11,7 +11,7 @@ npx hitloop init     # once per project: the .hitl folder, the MCP server for Cl
 npx hitloop          # the page, for every project, with links for your phone
 ```
 
-**Site: https://clickermonkey.github.io/hitl/** (the commands, and a Claude skill to copy or download).
+**Site: https://clickermonkey.github.io/hitloop/** (the commands, and a Claude skill to copy or download).
 
 | | | | |
 |:-:|:-:|:-:|:-:|
