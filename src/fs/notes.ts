@@ -349,8 +349,8 @@ export class Notes {
 export function agentPrompt(mdRel: string): string {
   return (
     `Read ${mdRel}: notes from me on files in this project (path:line, the quoted code, and what I said), on areas of pictures, or on nothing in particular. ` +
-    `Work through each open note: make the change it asks for, then resolve it with a short reply saying what you did (\`npx hitl resolve <id> --note "…"\`, or the resolve tool). ` +
-    `If you can't or shouldn't act on one, leave it open and reply with why. (\`npx hitl news\` shows what's new.)`
+    `Work through each open note: make the change it asks for, then resolve it with a short reply saying what you did (\`npx hitloop resolve <id> --note "…"\`, or the resolve tool). ` +
+    `If you can't or shouldn't act on one, leave it open and reply with why. (\`npx hitloop news\` shows what's new.)`
   );
 }
 
@@ -368,8 +368,8 @@ export function toMarkdown(comments: Comment[], jsonRel: string, { openOnly = fa
     '',
     '- Each note is on a file, on lines of it (`path:line`), on an area of a picture (marked by hand; `images/<id>.png` beside this file shows the marks), or on nothing in particular. Paths are relative to the project.',
     '- The quoted code is what the lines said when the note was left; the file may have moved on since, so find the code, not just the line number.',
-    '- When a note is dealt with, resolve it with a reply saying what you did: `npx hitl resolve <id> --note "Done: …"` (or the MCP tool `resolve`). The human sees it live.',
-    '- Leave notes you could not act on open, with a reply that says why (`npx hitl reply <id> "…"`).',
+    '- When a note is dealt with, resolve it with a reply saying what you did: `npx hitloop resolve <id> --note "Done: …"` (or the MCP tool `resolve`). The human sees it live.',
+    '- Leave notes you could not act on open, with a reply that says why (`npx hitloop reply <id> "…"`).',
     '',
   ];
   const section = (title: string, list: Comment[]) => {

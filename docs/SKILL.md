@@ -5,10 +5,10 @@ description: Human In The Loop. Use hitl to put things in front of the user on t
 
 # hitl: Human In The Loop
 
-hitl (`npx hitl`, npm package `hitl`) gives the user one inbox, on their phone or computer, for everything an agent
+hitl (Human In The Loop; npm package `hitloop`, command `hitl`) gives the user one inbox, on their phone or computer, for everything an agent
 needs from them. What they say is saved in the project under `.hitl/` and read back a little at a time. Prefer the
 hitl MCP tools when they are loaded (`news`, `show`, `approve`, `add_questions`, `wait`, …); otherwise use the CLI,
-which does the same. `npx hitl --help` lists every command and option: check it instead of guessing flags.
+which does the same. `npx hitloop --help` lists every command and option: check it instead of guessing flags.
 
 ## When to use it
 
@@ -21,16 +21,16 @@ which does the same. `npx hitl --help` lists every command and option: check it 
 ## Setup (once per project)
 
 ```sh
-npx hitl init            # .hitl/, the MCP server for Claude Code, a note in CLAUDE.md
-npx hitl                 # start the page (the hub); prints links for the user's phone
+npx hitloop init            # .hitl/, the MCP server for Claude Code, a note in CLAUDE.md
+npx hitloop                 # start the page (the hub); prints links for the user's phone
 ```
 
 ## Asking questions
 
-MCP `add_questions` (set, title, questions), or write `.hitl/questions/<set>.json` (`npx hitl schema questions`), or:
+MCP `add_questions` (set, title, questions), or write `.hitl/questions/<set>.json` (`npx hitloop schema questions`), or:
 
 ```sh
-npx hitl ask <set> --file questions.json --title "Login: first plan"
+npx hitloop ask <set> --file questions.json --title "Login: first plan"
 ```
 
 Each question: a stable `id`, a short `question`, `options` (each with a `description`), one marked
@@ -41,8 +41,8 @@ start `"hidden": true` and an option `"shows": ["their-id"]`. Show files, code, 
 ## Showing things for review
 
 ```sh
-npx hitl show src/login.tsx screens/login.png --mode review --title "Login, round 2" --intro "What I changed and why"
-git diff | npx hitl show - --mode review --title "The change"
+npx hitloop show src/login.tsx screens/login.png --mode review --title "Login, round 2" --intro "What I changed and why"
+git diff | npx hitloop show - --mode review --title "The change"
 ```
 
 MCP `show` takes `items`, each one of: `file` (with `lines: "10-40"`, or `against: "main"` for its changes since),
@@ -54,7 +54,7 @@ look. Every call makes its own review; it never replaces another's. Add to one w
 ## Asking for approval
 
 ```sh
-npx hitl approve "Deploy 2.4.0 to production?" --details "Restarts the API (~20 s of 503s). Undo: deploy rollback 2.3.9" --timeout 30m
+npx hitloop approve "Deploy 2.4.0 to production?" --details "Restarts the API (~20 s of 503s). Undo: deploy rollback 2.3.9" --timeout 30m
 # exit 0: approved, 1: refused or changes asked for, 2: no answer yet
 ```
 
@@ -63,23 +63,23 @@ user's note.
 
 ## Giving the link, then waiting
 
-Send the user the link the tool or command prints (`npx hitl url [id]` prints it again). Keep working on whatever
+Send the user the link the tool or command prints (`npx hitloop url [id]` prints it again). Keep working on whatever
 doesn't depend on the answer. To wait, run in the background (it exits, waking you, when the user has said something):
 
 ```sh
-npx hitl wait --any                 # anything new
-npx hitl wait --done <review|set>   # they've finished a review, answered an approval, or answered a whole set
-npx hitl wait --blocking <set>      # the blocking questions are answered
+npx hitloop wait --any                 # anything new
+npx hitloop wait --done <review|set>   # they've finished a review, answered an approval, or answered a whole set
+npx hitloop wait --blocking <set>      # the blocking questions are answered
 ```
 
 ## Reading what they said
 
 ```sh
-npx hitl news           # everything new since you last read, across every request and note (marks it read)
-npx hitl feedback <review> --all
-npx hitl answers <set> --open
-npx hitl notes --open   # notes the user wrote on files, lines, picture areas, or about anything
-npx hitl decisions auth # what they decided before about "auth"
+npx hitloop news           # everything new since you last read, across every request and note (marks it read)
+npx hitloop feedback <review> --all
+npx hitloop answers <set> --open
+npx hitloop notes --open   # notes the user wrote on files, lines, picture areas, or about anything
+npx hitloop decisions auth # what they decided before about "auth"
 ```
 
 MCP: `news`, `get_feedback`, `get_answers`, `notes`, `decisions`.
@@ -87,9 +87,9 @@ MCP: `news`, `get_feedback`, `get_answers`, `notes`, `decisions`.
 Then close the loop, so the user sees it was handled:
 
 ```sh
-npx hitl ack <set|review> <id…> --note "Done in src/login.tsx"         # answers and verdicts
-npx hitl resolve [<review>] <comment-or-note id…> --note "Fixed: …"     # comments (c12) and notes
-npx hitl reply <review> c12 "Because the API bills per call."
+npx hitloop ack <set|review> <id…> --note "Done in src/login.tsx"         # answers and verdicts
+npx hitloop resolve [<review>] <comment-or-note id…> --note "Fixed: …"     # comments (c12) and notes
+npx hitloop reply <review> c12 "Because the API bills per call."
 ```
 
 Put the user's words into docs and plans word for word. Say who's asking with `from` (MCP) or `--from` (CLI): your
@@ -98,4 +98,4 @@ session's name or the branch.
 ## Where things live
 
 `.hitl/questions/`, `.hitl/reviews/` (the agent writes these), `.hitl/answers/` and `.hitl/notes/` (hitl writes these,
-with readable `.md` copies), `.hitl/media/` (pictures, snapshots, photos). Formats: `npx hitl schema questions|reviews`.
+with readable `.md` copies), `.hitl/media/` (pictures, snapshots, photos). Formats: `npx hitloop schema questions|reviews`.

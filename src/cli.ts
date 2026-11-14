@@ -365,7 +365,7 @@ async function serve(): Promise<void> {
       const v = viewOf(key);
       if (c.side === 'human' && v) {
         const n = newsCounts(v);
-        if (n.total) console.log(`[${time()}] ${key}: ${n.total} new from the human (${[n.reviews && `${n.reviews} on reviews`, n.questions && `${n.questions} answers`, n.notes && `${n.notes} notes`].filter(Boolean).join(', ')})  → npx hitl news`);
+        if (n.total) console.log(`[${time()}] ${key}: ${n.total} new from the human (${[n.reviews && `${n.reviews} on reviews`, n.questions && `${n.questions} answers`, n.notes && `${n.notes} notes`].filter(Boolean).join(', ')})  → npx hitloop news`);
       } else if (c.side === 'agent') console.log(`[${time()}] ${key}: ${c.kind === 'review' ? 'review' : 'questions'} ${c.id} changed`);
       notifier.observe(key, c.kind, c.id);
     },
@@ -383,7 +383,7 @@ async function serve(): Promise<void> {
   if (!background && fs.existsSync(path.join(root, '.hitl'))) console.log('  ' + overviewText(openProject(root)).split('\n').join('\n  '));
   const n = notifyConfig(cfg);
   console.log(notifyEnabled(n) ? `  notifications: ${[n.ntfy ? 'ntfy' : '', n.webhook ? 'webhook' : ''].filter(Boolean).join(' + ')} (hitl notify test)` : '  notifications: off (hitl notify ntfy puts them on your phone)');
-  console.log('  every command and option: npx hitl --help');
+  console.log('  every command and option: npx hitloop --help');
   if (flag('-o', '--open')) openBrowser(links(running.port, host, token, hash, base)[0] ?? '');
 
   const stop = () => {
@@ -485,7 +485,7 @@ async function show(): Promise<void> {
     for (const e of [...r.normalised.errors, ...r.normalised.warnings]) console.log('  ' + e);
   }
   for (const l of await linkLines(p.root, `/r/${encodeURIComponent(id)}`)) console.log('  ' + l);
-  console.log(`Read what they say: npx hitl feedback ${id}   (wait: npx hitl wait --done ${id})`);
+  console.log(`Read what they say: npx hitloop feedback ${id}   (wait: npx hitloop wait --done ${id})`);
 }
 
 async function approve(): Promise<void> {
@@ -500,7 +500,7 @@ async function approve(): Promise<void> {
   const ok = await waitFor(p, { until: 'done', ids: [r.id], timeoutMs: parseDuration(value('--timeout'), 0), signal: ctl.signal });
   const fb = p.reviews.feedback(r.id);
   if (!ok || !fb.overall) {
-    console.log(`No answer yet. Wait again: npx hitl wait --done ${r.id}`);
+    console.log(`No answer yet. Wait again: npx hitloop wait --done ${r.id}`);
     process.exit(2);
   }
   p.reviews.markRead(r.id);
@@ -680,7 +680,7 @@ function hook(): void {
   const c = newsCounts(p);
   if (!c.total) return;
   const parts = [c.reviews && `${c.reviews} on reviews`, c.questions && `${c.questions} answers`, c.notes && `${c.notes} notes`].filter(Boolean);
-  console.log(`hitl: the human has said ${c.total} new thing${c.total === 1 ? '' : 's'} (${parts.join(', ')}). Read them with the news tool or \`npx hitl news\`.`);
+  console.log(`hitl: the human has said ${c.total} new thing${c.total === 1 ? '' : 's'} (${parts.join(', ')}). Read them with the news tool or \`npx hitloop news\`.`);
 }
 
 function stopHook(p: ProjectView): void {
@@ -694,11 +694,11 @@ function stopHook(p: ProjectView): void {
   if (input.stop_hook_active) return;
   const reasons: string[] = [];
   const c = newsCounts(p);
-  if (c.total) reasons.push(`the human said ${c.total} new thing${c.total === 1 ? '' : 's'} you haven't read (npx hitl news)`);
+  if (c.total) reasons.push(`the human said ${c.total} new thing${c.total === 1 ? '' : 's'} you haven't read (npx hitloop news)`);
   const gates = p.reviews.summaries().filter((s) => s.mode === 'approve' && s.status === 'open' && !s.done);
-  if (gates.length) reasons.push(`${gates.length} approval${gates.length === 1 ? ' is' : 's are'} still waiting (${gates.map((g) => g.id).join(', ')}): wait for ${gates.length === 1 ? 'it' : 'them'} with \`npx hitl wait --done ${gates.map((g) => g.id).join(' ')}\` before doing what needs the OK`);
+  if (gates.length) reasons.push(`${gates.length} approval${gates.length === 1 ? ' is' : 's are'} still waiting (${gates.map((g) => g.id).join(', ')}): wait for ${gates.length === 1 ? 'it' : 'them'} with \`npx hitloop wait --done ${gates.map((g) => g.id).join(' ')}\` before doing what needs the OK`);
   const blocking = p.questions.summaries().filter((s) => s.status === 'open' && s.blocking > 0);
-  if (blocking.length) reasons.push(`blocking questions are unanswered in ${blocking.map((s) => s.id).join(', ')}: wait with \`npx hitl wait --blocking ${blocking.map((s) => s.id).join(' ')}\``);
+  if (blocking.length) reasons.push(`blocking questions are unanswered in ${blocking.map((s) => s.id).join(', ')}: wait with \`npx hitloop wait --blocking ${blocking.map((s) => s.id).join(' ')}\``);
   if (!reasons.length) return;
   console.log(JSON.stringify({ decision: 'block', reason: `hitl: before you finish, ${reasons.join('; and ')}.` }));
 }
@@ -724,7 +724,7 @@ const MARK_END = '<!-- /hitl -->';
 const SNIPPET = `${MARK_START}
 ## The human in the loop: hitl
 
-Use hitl (Human In The Loop: the hitl MCP tools, or \`npx hitl\`) to put things in front of the user on their phone
+Use hitl (Human In The Loop: the hitl MCP tools, or \`npx hitloop\`) to put things in front of the user on their phone
 or computer instead of asking in chat:
 
 - **More than about 4 questions**, or ones that need thought or pictures: \`add_questions\` (each with options, one
@@ -733,11 +733,11 @@ or computer instead of asking in chat:
   item). Each call makes its own review.
 - **A yes or no before something risky** (deploy, delete, spend): \`approve\`; it waits for the answer.
 - Give the user the link the tool returns. Keep working on what doesn't depend on the answer; to wait, run
-  \`npx hitl wait --any\` (or \`--done <id>\`) in the background.
-- Read what they said with \`news\` (or \`npx hitl news\`): answers, verdicts, comments on lines and pictures, and notes
+  \`npx hitloop wait --any\` (or \`--done <id>\`) in the background.
+- Read what they said with \`news\` (or \`npx hitloop news\`): answers, verdicts, comments on lines and pictures, and notes
   they wrote on files. Then \`ack\` / \`resolve\` with a short note. Put their words into docs word for word.
 - Check \`decisions\` before asking something they may have decided already. Say who's asking with \`from\`.
-- \`npx hitl --help\` lists every command and option; check it rather than guessing at flags.
+- \`npx hitloop --help\` lists every command and option; check it rather than guessing at flags.
 ${MARK_END}`;
 
 function init(): void {
@@ -775,7 +775,7 @@ function init(): void {
   if (flag('--hook') || flag('--stop-hook')) for (const line of setHooks(root, { ...(flag('--hook') ? { prompt: true } : {}), ...(flag('--stop-hook') ? { stop: true } : {}) })) console.log(line);
   else console.log('- Hooks: off (hitl hooks on: news when you send a message; hitl hooks on --stop: a gate before Claude finishes)');
   if (fs.existsSync(path.join(root, '.questionme')) || fs.existsSync(path.join(root, '.review'))) console.log('- Found .questionme/ or .review/: hitl import brings them in');
-  console.log('\nOpen it on your phone: npx hitl  (or: hitl url)');
+  console.log('\nOpen it on your phone: npx hitloop  (or: hitl url)');
 }
 
 // ── import: questionme and folderview folders ──

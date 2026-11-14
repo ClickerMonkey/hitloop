@@ -40,8 +40,8 @@ jobs:
         run: |
           v=$(node -p "require('./package.json').version")
           echo "version=$v" >> "$GITHUB_OUTPUT"
-          if npm view "hitl@$v" version >/dev/null 2>&1; then
-            echo "hitl@$v is already on npm: nothing to publish"
+          if npm view "hitloop@$v" version >/dev/null 2>&1; then
+            echo "hitloop@$v is already on npm: nothing to publish"
             echo "new=false" >> "$GITHUB_OUTPUT"
           else
             echo "new=true" >> "$GITHUB_OUTPUT"

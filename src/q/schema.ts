@@ -124,7 +124,7 @@ export const sectionSchema = {
 
 export const setSchema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
-  $id: 'https://unpkg.com/hitl/schema/questions.schema.json',
+  $id: 'https://unpkg.com/hitloop/schema/questions.schema.json',
   title: 'hitl question set',
   description: 'Questions for a person to answer on their phone. Save as .hitl/questions/<set-id>.json in the project.',
   type: 'object',

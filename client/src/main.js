@@ -226,7 +226,7 @@ async function settingsPanel() {
   <label>Your name on notes <input data-s="author" placeholder="${esc(state.info.author || '')}" value="${esc(s.author)}"></label>
   ${p ? `<h3>Claude Code in ${esc(p.name)}</h3><div id="hooks-box" class="faint small">…</div>` : ''}
   <h3>On your phone</h3>
-  <p class="faint small">Open this page on your phone (the same Wi-Fi or Tailscale) and add it to your home screen. For notifications when an agent asks something: <code>npx hitl notify ntfy</code>.</p>
+  <p class="faint small">Open this page on your phone (the same Wi-Fi or Tailscale) and add it to your home screen. For notifications when an agent asks something: <code>npx hitloop notify ntfy</code>.</p>
   <h3>Shortcuts</h3>
   <dl class="keys"><dt><kbd>Ctrl</kbd> <kbd>P</kbd></dt><dd>Go to a file</dd><dt><kbd>/</kbd></dt><dd>Search in files</dd><dt><kbd>Esc</kbd></dt><dd>Close the file</dd><dt><kbd>[</kbd> <kbd>]</kbd></dt><dd>Previous / next file</dd><dt><kbd>Shift</kbd>-click</dt><dd>A range of lines</dd><dt><kbd>Ctrl</kbd> <kbd>Enter</kbd></dt><dd>Send a note or comment</dd><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>One at a time: previous / next</dd></dl>
   <p class="faint">hitl ${esc(state.hub.version || '')} — Human In The Loop${state.info.root ? ' · ' + esc(state.info.root) : ''}</p>`;

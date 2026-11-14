@@ -19,9 +19,9 @@ export const INSTRUCTIONS = `hitl (Human In The Loop) puts things in front of th
 - you have more than about 4 questions, or questions that need thought or pictures: add_questions (one set per topic), each with options, one recommended, and why it matters; mark the ones you can't go on without as blocking.
 - you want the user to look at or review something: show (mode "review" asks a verdict per item; "show" is just to look). Items can be project files (whole, lines, or changes since a git revision), raw code/text/markdown/JSON, diffs, pictures (with a before for before/after), diagrams, HTML mockups, links. Each call makes its own review: it never replaces another's.
 - you need a yes or no before doing something (a deploy, deleting data, spending money): approve. It waits, then tells you approved or refused.
-Then give the user the link from the result (get_link gives it again). Keep working on what doesn't depend on the answer. To wait, prefer running \`npx hitl wait --any\` (or \`--done <id>\`) in the background: it exits, and wakes you, when the user has said something. The wait tool blocks for at most a few minutes.
+Then give the user the link from the result (get_link gives it again). Keep working on what doesn't depend on the answer. To wait, prefer running \`npx hitloop wait --any\` (or \`--done <id>\`) in the background: it exits, and wakes you, when the user has said something. The wait tool blocks for at most a few minutes.
 Read only what's new with news: answers, verdicts, comments on lines and marked picture areas, and notes the user wrote on files (or anywhere). Apply them, then ack (answers and verdicts) or resolve (comments and notes) with a short note the user sees. Put the user's words into docs word for word. decisions searches what they decided before: check it before asking again.
-Say who's asking with "from" (your session's name or branch). The hitl CLI does all of this too, plus serving and setup: \`npx hitl --help\` lists every command and option; check it instead of guessing.`;
+Say who's asking with "from" (your session's name or branch). The hitl CLI does all of this too, plus serving and setup: \`npx hitloop --help\` lists every command and option; check it instead of guessing.`;
 
 type Json = Record<string, unknown>;
 
@@ -100,7 +100,7 @@ const tools: Tool[] = [
   {
     name: 'wait',
     description:
-      'Block until the user has said something: until "any" (anything new; the default), "done" (these reviews have an overall verdict or approval / these question sets are all answered), "all" (every item has a verdict / every question answered), or "blocking" (the blocking questions are answered). ids narrows it to some reviews or question sets ("notes" for notes). Waits at most timeout_seconds (default 240, max 900); settle_seconds waits for a pause. For longer waits run `npx hitl wait --any` in the background instead. Returns the news when it ends.',
+      'Block until the user has said something: until "any" (anything new; the default), "done" (these reviews have an overall verdict or approval / these question sets are all answered), "all" (every item has a verdict / every question answered), or "blocking" (the blocking questions are answered). ids narrows it to some reviews or question sets ("notes" for notes). Waits at most timeout_seconds (default 240, max 900); settle_seconds waits for a pause. For longer waits run `npx hitloop wait --any` in the background instead. Returns the news when it ends.',
     inputSchema: { type: 'object', properties: { until: { enum: [...WAITS] }, ...idsProp, timeout_seconds: { type: 'number' }, settle_seconds: { type: 'number' }, ...folderProp } },
     run: async (a, signal) => {
       const p = projectOf(a);
@@ -158,7 +158,7 @@ const tools: Tool[] = [
         `Made ${mode === 'show' ? 'a showing' : 'a review'} "${r.id}" with ${r.ids.length} item${r.ids.length === 1 ? '' : 's'}: ${r.ids.join(', ')}`,
         problems(r.normalised),
         await linkFor(p.root, `/r/${encodeURIComponent(r.id)}`),
-        `Read what they say with news (or get_feedback review "${r.id}"); wait with \`npx hitl wait --done ${r.id}\` in the background.`,
+        `Read what they say with news (or get_feedback review "${r.id}"); wait with \`npx hitloop wait --done ${r.id}\` in the background.`,
       ]
         .filter(Boolean)
         .join('\n');
@@ -167,7 +167,7 @@ const tools: Tool[] = [
   {
     name: 'approve',
     description:
-      'Ask the user for a yes or no before you do something (deploy, delete, spend, send). Shows the question, your details and any items, notifies their phone, and waits up to timeout_seconds (default 120, max 900) for the answer. Returns APPROVED, REFUSED or "changes asked for" with their note; if they haven\'t answered yet, says so: then wait with `npx hitl wait --done <id>` in the background, or check with get_feedback.',
+      'Ask the user for a yes or no before you do something (deploy, delete, spend, send). Shows the question, your details and any items, notifies their phone, and waits up to timeout_seconds (default 120, max 900) for the answer. Returns APPROVED, REFUSED or "changes asked for" with their note; if they haven\'t answered yet, says so: then wait with `npx hitloop wait --done <id>` in the background, or check with get_feedback.',
     inputSchema: {
       type: 'object',
       required: ['question'],
@@ -188,7 +188,7 @@ const tools: Tool[] = [
       const link = await linkFor(p.root, `/r/${encodeURIComponent(r.id)}`);
       const ok = await waitFor(p, { until: 'done', ids: [r.id], timeoutMs: clampTimeout(a['timeout_seconds'], 120), signal });
       const fb = p.reviews.feedback(r.id);
-      if (!ok || !fb.overall) return [`Asked "${r.id}"; no answer yet.`, link, `Wait for it: \`npx hitl wait --done ${r.id}\` (in the background), then get_feedback review "${r.id}".`].join('\n');
+      if (!ok || !fb.overall) return [`Asked "${r.id}"; no answer yet.`, link, `Wait for it: \`npx hitloop wait --done ${r.id}\` (in the background), then get_feedback review "${r.id}".`].join('\n');
       const v = fb.overall.verdict;
       p.reviews.markRead(r.id);
       return `${v === 'ok' ? 'APPROVED' : v === 'no' ? 'REFUSED' : 'NOT YET: changes asked for'}${fb.overall.note ? ` — "${fb.overall.note}"` : ''} (${r.id})`;

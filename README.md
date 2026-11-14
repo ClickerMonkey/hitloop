@@ -4,9 +4,11 @@
 **review** its work, and waits at a **gate** for your OK. You answer, review, mark up pictures and browse the project's
 files, on your phone or your computer. Everything you say lands in one feed the agent reads a little at a time.
 
+The npm package is **`hitloop`**; once installed (`npm i -g hitloop`) the command is `hitl`.
+
 ```sh
-npx hitl init     # once per project: the .hitl folder, the MCP server for Claude Code, a note in CLAUDE.md
-npx hitl          # the page, for every project, with links for your phone
+npx hitloop init     # once per project: the .hitl folder, the MCP server for Claude Code, a note in CLAUDE.md
+npx hitloop          # the page, for every project, with links for your phone
 ```
 
 **Site: https://clickermonkey.github.io/hitl/** (the commands, and a Claude skill to copy or download).
@@ -45,7 +47,7 @@ tree, the folder and the file side by side).
 
 ## For agents
 
-`npx hitl init` adds the MCP server to Claude Code (`claude mcp add --scope user hitl -- npx -y hitl@latest mcp`) and
+`npx hitloop init` adds the MCP server to Claude Code (`claude mcp add --scope user hitl -- npx -y hitloop@latest mcp`) and
 a short section to the project's `CLAUDE.md` (or `AGENTS.md`) on when to use it.
 
 ### MCP tools
@@ -53,7 +55,7 @@ a short section to the project's `CLAUDE.md` (or `AGENTS.md`) on when to use it.
 | Tool | |
 |---|---|
 | `news` | Everything the human said since you last read, across every question set, review and note, one line each. Start here. |
-| `wait` | Block until the human says something (`any`), finishes (`done`), answers everything (`all`), or answers the blocking questions. Up to 15 minutes; for longer, run `npx hitl wait` in the background. |
+| `wait` | Block until the human says something (`any`), finishes (`done`), answers everything (`all`), or answers the blocking questions. Up to 15 minutes; for longer, run `npx hitloop wait` in the background. |
 | `show` | Put files, code, text, diffs, pictures, diagrams, mockups or links in front of the human. `mode: "review"` asks a verdict per item; `"show"` is just to look. Each call makes its own review. |
 | `approve` | Ask yes or no before doing something, and wait for it. Returns APPROVED, REFUSED or "not yet" with their note. |
 | `add_questions` | Questions in a set (questionme's format): options, a recommendation, why it matters, follow-ups that open on an answer. |
@@ -66,25 +68,25 @@ a short section to the project's `CLAUDE.md` (or `AGENTS.md`) on when to use it.
 ### The CLI does the same
 
 ```sh
-npx hitl news                                  # what's new (marks it read; --peek doesn't)
-npx hitl wait --any                            # exit once the human says something, printing it
-npx hitl wait --done <review>                  # exit once they've finished a review (or answered an approval)
-npx hitl show src/login.ts screens/*.png --title "Login, round 2"     # a review of files
-git diff | npx hitl show - --title "The change"                      # stdin: a diff, code or text
-npx hitl approve "Deploy 2.4.0?" --details "Restarts the API" --timeout 30m && ./deploy.sh
-npx hitl ask <set> --file questions.json       # questions (or write .hitl/questions/<set>.json)
-npx hitl feedback <review>    npx hitl answers <set> --new    npx hitl notes --open
-npx hitl ack <set|review> <id…> --note "Done in src/x.ts"
-npx hitl resolve [<review>] <id…> --note "Fixed: …"
-npx hitl reply <review> c12 "Because the API bills per call."
-npx hitl decisions auth                        # what was decided about auth
-npx hitl status                                # every request, with counts
+npx hitloop news                                  # what's new (marks it read; --peek doesn't)
+npx hitloop wait --any                            # exit once the human says something, printing it
+npx hitloop wait --done <review>                  # exit once they've finished a review (or answered an approval)
+npx hitloop show src/login.ts screens/*.png --title "Login, round 2"     # a review of files
+git diff | npx hitloop show - --title "The change"                      # stdin: a diff, code or text
+npx hitloop approve "Deploy 2.4.0?" --details "Restarts the API" --timeout 30m && ./deploy.sh
+npx hitloop ask <set> --file questions.json       # questions (or write .hitl/questions/<set>.json)
+npx hitloop feedback <review>    npx hitloop answers <set> --new    npx hitloop notes --open
+npx hitloop ack <set|review> <id…> --note "Done in src/x.ts"
+npx hitloop resolve [<review>] <id…> --note "Fixed: …"
+npx hitloop reply <review> c12 "Because the API bills per call."
+npx hitloop decisions auth                        # what was decided about auth
+npx hitloop status                                # every request, with counts
 ```
 
 `hitl approve` exits 0 when approved, 1 when refused (or changes are asked for), 2 when there's no answer yet, so a
 script can stop at a real yes or no.
 
-`npx hitl --help` lists every command and option; a mistyped option is refused rather than ignored.
+`npx hitloop --help` lists every command and option; a mistyped option is refused rather than ignored.
 
 ### Claude Code hooks (optional)
 
@@ -108,9 +110,9 @@ Off unless you turn them on, per project (`hitl hooks on`, `hitl hooks on --stop
 
 Every request is its own file, and a new review always gets a fresh id, so one agent's request never replaces
 another's. Every write is locked and atomic, so the page, the MCP server and the CLI can all write at once.
-Formats: `npx hitl schema questions`, `npx hitl schema reviews` (or `schema/` in the package).
+Formats: `npx hitloop schema questions`, `npx hitloop schema reviews` (or `schema/` in the package).
 
-`npx hitl import` brings in a project's `.questionme/` (questions and answers) and `.review/` (folderview's comments,
+`npx hitloop import` brings in a project's `.questionme/` (questions and answers) and `.review/` (folderview's comments,
 as notes).
 
 ### A review
@@ -139,15 +141,15 @@ A `file` item keeps a copy of the file as it was shown; if it changes later, the
 
 ## One server for every project
 
-`npx hitl` starts one shared server (the hub) on port 4199 for every project you've used it in, so your phone needs
+`npx hitloop` starts one shared server (the hub) on port 4199 for every project you've used it in, so your phone needs
 one bookmark. The MCP server starts it in the background when an agent needs a link.
 
 ```sh
-npx hitl                       # the hub (adds this folder); prints the links
-npx hitl url [review|set]      # the links (starts the hub if needed)
-npx hitl stop                  # stop the hub
-npx hitl projects              # what it serves;  --forget <folder> to drop one
-npx hitl --solo [folder]       # just this folder, on its own server
+npx hitloop                       # the hub (adds this folder); prints the links
+npx hitloop url [review|set]      # the links (starts the hub if needed)
+npx hitloop stop                  # stop the hub
+npx hitloop projects              # what it serves;  --forget <folder> to drop one
+npx hitloop --solo [folder]       # just this folder, on its own server
 ```
 
 | Option | Environment | Default | |
@@ -173,10 +175,10 @@ one. Add the page to your phone's home screen and it opens like an app.
 ## Notifications on your phone
 
 ```sh
-npx hitl notify ntfy             # makes a private ntfy topic, saves it, and sends a test
-npx hitl notify webhook <url>    # or POST JSON anywhere: Pushover, Discord, Home Assistant, …
-npx hitl notify link http://100.100.4.74:4199   # where the tap should open
-npx hitl notify test | off
+npx hitloop notify ntfy             # makes a private ntfy topic, saves it, and sends a test
+npx hitloop notify webhook <url>    # or POST JSON anywhere: Pushover, Discord, Home Assistant, …
+npx hitloop notify link http://100.100.4.74:4199   # where the tap should open
+npx hitloop notify test | off
 ```
 
 Install the [ntfy app](https://ntfy.sh) and subscribe to the topic it prints. Questions and reviews are batched (one

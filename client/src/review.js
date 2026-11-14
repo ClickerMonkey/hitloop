@@ -177,7 +177,7 @@ export function renderReviewPage(el, filter, go) {
     .join('');
   const ro = state.info.readOnly;
   el.innerHTML = `<div class="page-wrap notes-page"><header class="page-hero"><div><span class="eyebrow">${esc(state.info.name)}</span><h1>Notes for the agent</h1></div></header>
-  <p class="lede">Write on any file, any line (tap its number) or any picture (mark an area), or here about anything. Add photos from your phone. The agent reads them with <code>npx hitl news</code>, works through them, and resolves each with a reply you'll see here.</p>
+  <p class="lede">Write on any file, any line (tap its number) or any picture (mark an area), or here about anything. Add photos from your phone. The agent reads them with <code>npx hitloop news</code>, works through them, and resolves each with a reply you'll see here.</p>
   ${ro ? '' : `<div class="new-note" id="new-note">${composerHtml('', 0, 0)}</div>`}
   <div class="page-tools"><div class="seg">${tabs}</div><span class="grow"></span>
     ${mdLink ? `<a class="btn" href="${mdLink}">${icon('file', 16)} NOTES.md</a>` : ''}

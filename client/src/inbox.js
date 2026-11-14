@@ -71,7 +71,7 @@ export function renderInbox(el, key = '') {
   }</div></header>`;
   if (p) html += projectLinks(p);
   if (!all.length) {
-    html += `<div class="empty"><div class="empty-art">${icon('chat', 34)}</div><h2>Nothing from an agent yet</h2><p>When an agent asks you something, shows you something or waits for your OK, it shows up here (and on your phone, with <code>npx hitl notify ntfy</code>). In a project folder, run <code>npx hitl init</code> once to set it up for Claude Code.</p>${p ? `<p><a class="btn" href="#/p/${encodeURIComponent(p.key)}/files/">${icon('folder', 16)} Browse the files</a></p>` : ''}</div>`;
+    html += `<div class="empty"><div class="empty-art">${icon('chat', 34)}</div><h2>Nothing from an agent yet</h2><p>When an agent asks you something, shows you something or waits for your OK, it shows up here (and on your phone, with <code>npx hitloop notify ntfy</code>). In a project folder, run <code>npx hitloop init</code> once to set it up for Claude Code.</p>${p ? `<p><a class="btn" href="#/p/${encodeURIComponent(p.key)}/files/">${icon('folder', 16)} Browse the files</a></p>` : ''}</div>`;
   } else {
     if (waiting.length) html += `<section class="inbox-sec"><div class="sets">${waiting.map((r) => rowHtml(r, many)).join('')}</div></section>`;
     if (done.length) html += `<details class="inbox-done"${waiting.length ? '' : ' open'}><summary>${icon('check', 15)} Done (${done.length})</summary><div class="sets">${done.slice(0, 60).map((r) => rowHtml(r, many)).join('')}</div></details>`;

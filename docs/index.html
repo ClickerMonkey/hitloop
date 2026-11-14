@@ -952,7 +952,7 @@
             <h1>Your agent asks.<br /><span class="grad-text">You decide.</span><br />From your phone.</h1>
             <p class="lede">hitl is where an AI coding agent and its human meet. It asks you questions, shows you its work and waits at a gate for your OK; you answer, review, mark up screenshots and browse the code, anywhere. Everything you say lands in one feed the agent reads.</p>
             <div class="cta" id="start">
-              <span class="command"><span><span class="dollar">$</span> npx hitl init</span><button class="copy" data-copy="npx hitl init" aria-label="Copy the command"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg></button></span>
+              <span class="command"><span><span class="dollar">$</span> npx hitloop init</span><button class="copy" data-copy="npx hitloop init" aria-label="Copy the command"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg></button></span>
               <a class="btn soft" href="#skill">Get the Claude skill</a>
             </div>
             <ul class="checks">
@@ -1081,7 +1081,7 @@
         <div class="wrap center reveal">
           <span class="eyebrow">Commands</span>
           <h2>For you, and for your agent</h2>
-          <p class="lede">The CLI and the MCP server do the same things. <code>npx hitl --help</code> lists every option.</p>
+          <p class="lede">The CLI and the MCP server do the same things. <code>npx hitloop --help</code> lists every option.</p>
           <div class="tabs" role="tablist">
             <button role="tab" aria-selected="true" data-tab="you">You</button>
             <button role="tab" aria-selected="false" data-tab="cli">The agent (CLI)</button>
@@ -1089,27 +1089,27 @@
           </div>
           <div class="panel" data-panel="you">
             <div class="cmds">
-              <div class="cmd"><code>npx hitl init</code><button class="copy" data-copy="npx hitl init" aria-label="Copy">⧉</button><p>Once per project: the <code>.hitl</code> folder, the MCP server for Claude Code, a note in CLAUDE.md.</p></div>
-              <div class="cmd"><code>npx hitl</code><button class="copy" data-copy="npx hitl" aria-label="Copy">⧉</button><p>Start the page for every project. It prints links for your phone (LAN and Tailscale).</p></div>
-              <div class="cmd"><code>npx hitl notify ntfy</code><button class="copy" data-copy="npx hitl notify ntfy" aria-label="Copy">⧉</button><p>Notifications on your phone, through the free ntfy app. Or <code>notify webhook &lt;url&gt;</code>.</p></div>
-              <div class="cmd"><code>npx hitl hooks on --stop</code><button class="copy" data-copy="npx hitl hooks on --stop" aria-label="Copy">⧉</button><p>Optional: don't let Claude finish while an approval or a blocking question waits.</p></div>
-              <div class="cmd"><code>npx hitl import</code><button class="copy" data-copy="npx hitl import" aria-label="Copy">⧉</button><p>Coming from questionme or folderview? Brings in <code>.questionme/</code> and <code>.review/</code>.</p></div>
+              <div class="cmd"><code>npx hitloop init</code><button class="copy" data-copy="npx hitloop init" aria-label="Copy">⧉</button><p>Once per project: the <code>.hitl</code> folder, the MCP server for Claude Code, a note in CLAUDE.md.</p></div>
+              <div class="cmd"><code>npx hitloop</code><button class="copy" data-copy="npx hitloop" aria-label="Copy">⧉</button><p>Start the page for every project. It prints links for your phone (LAN and Tailscale).</p></div>
+              <div class="cmd"><code>npx hitloop notify ntfy</code><button class="copy" data-copy="npx hitloop notify ntfy" aria-label="Copy">⧉</button><p>Notifications on your phone, through the free ntfy app. Or <code>notify webhook &lt;url&gt;</code>.</p></div>
+              <div class="cmd"><code>npx hitloop hooks on --stop</code><button class="copy" data-copy="npx hitloop hooks on --stop" aria-label="Copy">⧉</button><p>Optional: don't let Claude finish while an approval or a blocking question waits.</p></div>
+              <div class="cmd"><code>npx hitloop import</code><button class="copy" data-copy="npx hitloop import" aria-label="Copy">⧉</button><p>Coming from questionme or folderview? Brings in <code>.questionme/</code> and <code>.review/</code>.</p></div>
             </div>
           </div>
           <div class="panel" data-panel="cli" hidden>
             <div class="cmds">
-              <div class="cmd"><code>npx hitl approve "Deploy 2.4.0?" --details "Restarts the API" --timeout 30m</code><button class="copy" data-copy='npx hitl approve "Deploy 2.4.0?" --details "Restarts the API" --timeout 30m' aria-label="Copy">⧉</button><p>Ask yes or no and wait. Exits 0 approved, 1 refused, 2 no answer yet.</p></div>
-              <div class="cmd"><code>npx hitl show src/login.tsx screens/login.png --mode review --title "Login, round 2"</code><button class="copy" data-copy='npx hitl show src/login.tsx screens/login.png --mode review --title "Login, round 2"' aria-label="Copy">⧉</button><p>Put files in front of the human for a verdict on each. <code>git diff | npx hitl show -</code> works too.</p></div>
-              <div class="cmd"><code>npx hitl ask plan --file questions.json</code><button class="copy" data-copy="npx hitl ask plan --file questions.json" aria-label="Copy">⧉</button><p>A set of questions, with options, recommendations and why each matters.</p></div>
-              <div class="cmd"><code>npx hitl wait --any</code><button class="copy" data-copy="npx hitl wait --any" aria-label="Copy">⧉</button><p>Run it in the background: it exits, waking the agent, once the human has said something.</p></div>
-              <div class="cmd"><code>npx hitl news</code><button class="copy" data-copy="npx hitl news" aria-label="Copy">⧉</button><p>Everything new since the agent last read: answers, verdicts, comments, notes.</p></div>
-              <div class="cmd"><code>npx hitl resolve c12 --note "Fixed in src/api.ts"</code><button class="copy" data-copy='npx hitl resolve c12 --note "Fixed in src/api.ts"' aria-label="Copy">⧉</button><p>Close the loop: the human sees what was done. <code>ack</code> for answers, <code>reply</code> to talk back.</p></div>
-              <div class="cmd"><code>npx hitl decisions auth</code><button class="copy" data-copy="npx hitl decisions auth" aria-label="Copy">⧉</button><p>What the human decided before, so it isn't asked twice.</p></div>
+              <div class="cmd"><code>npx hitloop approve "Deploy 2.4.0?" --details "Restarts the API" --timeout 30m</code><button class="copy" data-copy='npx hitloop approve "Deploy 2.4.0?" --details "Restarts the API" --timeout 30m' aria-label="Copy">⧉</button><p>Ask yes or no and wait. Exits 0 approved, 1 refused, 2 no answer yet.</p></div>
+              <div class="cmd"><code>npx hitloop show src/login.tsx screens/login.png --mode review --title "Login, round 2"</code><button class="copy" data-copy='npx hitloop show src/login.tsx screens/login.png --mode review --title "Login, round 2"' aria-label="Copy">⧉</button><p>Put files in front of the human for a verdict on each. <code>git diff | npx hitloop show -</code> works too.</p></div>
+              <div class="cmd"><code>npx hitloop ask plan --file questions.json</code><button class="copy" data-copy="npx hitloop ask plan --file questions.json" aria-label="Copy">⧉</button><p>A set of questions, with options, recommendations and why each matters.</p></div>
+              <div class="cmd"><code>npx hitloop wait --any</code><button class="copy" data-copy="npx hitloop wait --any" aria-label="Copy">⧉</button><p>Run it in the background: it exits, waking the agent, once the human has said something.</p></div>
+              <div class="cmd"><code>npx hitloop news</code><button class="copy" data-copy="npx hitloop news" aria-label="Copy">⧉</button><p>Everything new since the agent last read: answers, verdicts, comments, notes.</p></div>
+              <div class="cmd"><code>npx hitloop resolve c12 --note "Fixed in src/api.ts"</code><button class="copy" data-copy='npx hitloop resolve c12 --note "Fixed in src/api.ts"' aria-label="Copy">⧉</button><p>Close the loop: the human sees what was done. <code>ack</code> for answers, <code>reply</code> to talk back.</p></div>
+              <div class="cmd"><code>npx hitloop decisions auth</code><button class="copy" data-copy="npx hitloop decisions auth" aria-label="Copy">⧉</button><p>What the human decided before, so it isn't asked twice.</p></div>
             </div>
           </div>
           <div class="panel" data-panel="mcp" hidden>
             <div class="cmds">
-              <div class="cmd"><code>claude mcp add --scope user hitl -- npx -y hitl@latest mcp</code><button class="copy" data-copy="claude mcp add --scope user hitl -- npx -y hitl@latest mcp" aria-label="Copy">⧉</button><p>The MCP server for Claude Code, in every project (<code>hitl init</code> adds it for you). Its tools:</p></div>
+              <div class="cmd"><code>claude mcp add --scope user hitl -- npx -y hitloop@latest mcp</code><button class="copy" data-copy="claude mcp add --scope user hitl -- npx -y hitloop@latest mcp" aria-label="Copy">⧉</button><p>The MCP server for Claude Code, in every project (<code>hitl init</code> adds it for you). Its tools:</p></div>
               <div class="cmd tool"><code>news · wait · status · get_link</code><p>Read what's new, wait for the human, see what's open, get the link to send.</p></div>
               <div class="cmd tool"><code>show · approve · add_questions</code><p>Ask for a review, an approval or answers. Each call makes its own request, so agents never overwrite each other.</p></div>
               <div class="cmd tool"><code>get_feedback · get_answers · notes · decisions</code><p>One review's verdicts and comments, one set's answers, the human's notes, past decisions.</p></div>
@@ -1160,7 +1160,7 @@
         <div class="wrap reveal">
           <h2>Put a human in the loop<br /><span class="grad-text">in one command</span></h2>
           <div class="cta">
-            <span class="command"><span><span class="dollar">$</span> npx hitl init</span><button class="copy" data-copy="npx hitl init" aria-label="Copy the command"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg></button></span>
+            <span class="command"><span><span class="dollar">$</span> npx hitloop init</span><button class="copy" data-copy="npx hitloop init" aria-label="Copy the command"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg></button></span>
             <a class="btn ghost" href="https://github.com/ClickerMonkey/hitl">Read the docs on GitHub</a>
           </div>
         </div>
@@ -1173,7 +1173,7 @@
         <span>Human In The Loop · MIT</span>
         <div class="links">
           <a href="https://github.com/ClickerMonkey/hitl">GitHub</a>
-          <a href="https://www.npmjs.com/package/hitl">npm</a>
+          <a href="https://www.npmjs.com/package/hitloop">npm</a>
           <a href="SKILL.md">SKILL.md</a>
           <span>Replaces <a href="https://github.com/ClickerMonkey/questionme">questionme</a> &amp; <a href="https://github.com/ClickerMonkey/folderview">folderview</a></span>
         </div>

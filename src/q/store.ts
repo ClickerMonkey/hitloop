@@ -29,7 +29,7 @@ import {
 } from './model.js';
 
 export const DIR = '.hitl';
-export const SCHEMA_URL = 'https://unpkg.com/hitl/schema/questions.schema.json';
+export const SCHEMA_URL = 'https://unpkg.com/hitloop/schema/questions.schema.json';
 
 
 export interface LoadedSet extends Normalised {

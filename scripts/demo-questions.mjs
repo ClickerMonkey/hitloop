@@ -45,7 +45,7 @@ export async function forecast(place: string): Promise<Forecast> {
       .map((h, i) => `<div style="text-align:center"><div style="opacity:.7;font-size:12px">${h}</div><div>${17 + i}°</div></div>`)
       .join('')}</div></div>`;
   const set = {
-    $schema: 'https://unpkg.com/hitl/schema/questions.schema.json',
+    $schema: 'https://unpkg.com/hitloop/schema/questions.schema.json',
     title: 'Weather app: first plan',
     intro: 'I read `docs/plan.md` and `src/forecast.ts`. These are the choices that shape the first version. **Blocking** ones stop me; the rest I can work around.',
     content: [{ file: 'docs/plan.md', collapsed: true, title: 'The plan as it stands' }],

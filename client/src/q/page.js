@@ -335,7 +335,7 @@ function menu(anchor, recs) {
   const r = anchor.getBoundingClientRect();
   pop.style.top = r.bottom + scrollY + 6 + 'px';
   pop.style.right = Math.max(8, innerWidth - r.right) + 'px';
-  const prompt = `Read the new answers in the hitl question set "${view.setId}" (get_answers, filter "new"; or \`npx hitl answers ${view.setId} --new\`), apply them, and ack each one with a short note.`;
+  const prompt = `Read the new answers in the hitl question set "${view.setId}" (get_answers, filter "new"; or \`npx hitloop answers ${view.setId} --new\`), apply them, and ack each one with a short note.`;
   pop.innerHTML = `
     <button class="menu-item" data-m="accept" ${recs && !info.readOnly ? '' : 'disabled'}>${icon('sparkles', 16)}Take every recommendation${recs ? ` (${recs} unanswered)` : ''}</button>
     <button class="menu-item" data-m="prompt">${icon('copy', 16)}Copy a prompt for the agent</button>

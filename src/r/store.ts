@@ -29,7 +29,7 @@ import {
 } from './model.js';
 
 export const DIR = '.hitl';
-export const SCHEMA_URL = 'https://unpkg.com/hitl/schema/reviews.schema.json';
+export const SCHEMA_URL = 'https://unpkg.com/hitloop/schema/reviews.schema.json';
 const SNAP_MAX = 5 * 1048576;
 const PHOTO_MAX = 12 * 1048576;
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://unpkg.com/hitl/schema/reviews.schema.json",
+  "$id": "https://unpkg.com/hitloop/schema/reviews.schema.json",
   "title": "hitl review",
   "description": "Things an agent shows the human to look at, review or approve (.hitl/reviews/<id>.json).",
   "type": "object",

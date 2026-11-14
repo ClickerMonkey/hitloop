@@ -8,10 +8,10 @@ import { fileURLToPath } from 'node:url';
 /** How Claude Code should start hitl: through npx once it's published, else this copy. */
 export function launcher(): { command: string; args: string[]; line: string } {
   const cli = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'cli.js');
-  if (/[\\/]_npx[\\/]|[\\/]node_modules[\\/]hitl[\\/]/.test(cli)) {
+  if (/[\\/]_npx[\\/]|[\\/]node_modules[\\/]hitloop[\\/]/.test(cli)) {
     return process.platform === 'win32'
-      ? { command: 'cmd', args: ['/c', 'npx', '-y', 'hitl@latest'], line: 'cmd /c npx -y hitl@latest' }
-      : { command: 'npx', args: ['-y', 'hitl@latest'], line: 'npx -y hitl@latest' };
+      ? { command: 'cmd', args: ['/c', 'npx', '-y', 'hitloop@latest'], line: 'cmd /c npx -y hitloop@latest' }
+      : { command: 'npx', args: ['-y', 'hitloop@latest'], line: 'npx -y hitloop@latest' };
   }
   return { command: process.execPath, args: [cli], line: `"${process.execPath}" "${cli}"` };
 }

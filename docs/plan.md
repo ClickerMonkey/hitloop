@@ -39,7 +39,7 @@ much of their code as possible, and adds showings and reviews.
   NEWS.md                  what's new for the agent, readable
 ```
 
-- **One hub** (`npx hitl`) serves every project on one port (4199), with a token, on the LAN and Tailscale.
+- **One hub** (`npx hitloop`) serves every project on one port (4199), with a token, on the LAN and Tailscale.
 - **The page**: an Inbox across projects ("waiting on you"); each project has Files (folderview), Questions,
   Reviews (showings), Notes, Changes, Decisions. One look (folderview's design tokens), one top bar, one settings
   panel.

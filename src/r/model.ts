@@ -495,7 +495,7 @@ export function feedbackMarkdown(review: Review, fb: Feedback): string {
       : `${s.reviewed} of ${s.items} items reviewed (${s.ok} good, ${s.changes} need changes, ${s.no} no), ${s.open} open comment${s.open === 1 ? '' : 's'}.${
           fb.overall ? ` Overall: **${VERDICT_TEXT[fb.overall.verdict]}**${fb.overall.note ? `: ${fb.overall.note}` : ''}.` : ''
         }`;
-  const out = [`# ${review.title}: feedback`, '', head, '', `Written by hitl; the data is in the .json next to this file. What's new: \`npx hitl news\`.`, ''];
+  const out = [`# ${review.title}: feedback`, '', head, '', `Written by hitl; the data is in the .json next to this file. What's new: \`npx hitloop news\`.`, ''];
   const byItem = new Map<string, Comment[]>();
   for (const c of fb.comments) {
     const l = byItem.get(c.item) ?? [];

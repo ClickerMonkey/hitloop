@@ -214,7 +214,7 @@ function listen(server: http.Server, port: number, host: string, tries = 20): Pr
 }
 
 const LOCKED =
-  '<!doctype html><meta name="viewport" content="width=device-width"><title>hitl</title><body style="font:16px system-ui;padding:2em;max-width:36em;margin:auto"><h1>🔒 This hitl needs its token</h1><p>Open the link you were given (it ends in <code>?token=…</code>). It is kept as a cookie, so you only need it once on this device. <code>npx hitl url</code> prints the links.</p>';
+  '<!doctype html><meta name="viewport" content="width=device-width"><title>hitl</title><body style="font:16px system-ui;padding:2em;max-width:36em;margin:auto"><h1>🔒 This hitl needs its token</h1><p>Open the link you were given (it ends in <code>?token=…</code>). It is kept as a cookie, so you only need it once on this device. <code>npx hitloop url</code> prints the links.</p>';
 
 function allowedHosts(bind: string, extra: string[]): (host: string) => boolean {
   const names = new Set(['localhost', os.hostname().toLowerCase(), ...extra.map((h) => h.toLowerCase())]);

@@ -158,7 +158,7 @@ export function overviewText(p: ProjectView): string {
   if (notes.length) lines.push(`Notes from the human: ${open} open of ${notes.length}${p.notes.unread() ? `, ${p.notes.unread()} new` : ''}`);
   if (!lines.length) lines.push(`Nothing in ${p.root} yet: no questions, reviews or notes.`);
   const c = newsCounts(p);
-  if (c.total) lines.push('', `New since you last read: ${c.total} (npx hitl news, or the news tool).`);
+  if (c.total) lines.push('', `New since you last read: ${c.total} (npx hitloop news, or the news tool).`);
   return lines.join('\n');
 }
 

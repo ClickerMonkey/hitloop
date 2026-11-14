@@ -1,10 +1,11 @@
 {
-  "name": "hitl",
+  "name": "hitloop",
   "version": "0.1.0",
   "description": "Human In The Loop: where an AI agent and its human meet. The agent asks questions, shows you things and asks for reviews and approvals; you answer, review, mark up pictures and browse the project's files on your phone or computer, and everything you say lands in one feed the agent reads. A web page, a CLI and an MCP server.",
   "type": "module",
   "bin": {
-    "hitl": "dist/cli.js"
+    "hitl": "dist/cli.js",
+    "hitloop": "dist/cli.js"
   },
   "files": [
     "dist",
@@ -20,7 +21,7 @@
     "build:client": "node scripts/build-client.mjs",
     "watch:client": "node scripts/build-client.mjs --watch",
     "dev": "npm run build && node dist/cli.js",
-    "test": "npm run build && node --test test/*.test.mjs",
+    "test": "npm run build && node --test --test-force-exit test/*.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "demo": "node scripts/demo.mjs",
     "screenshots": "node scripts/shots.mjs",
