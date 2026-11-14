@@ -32,6 +32,8 @@ const ctx = {
   phone: await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }),
   desktop: await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 }),
 };
+// a hub with a token: open it once per context so the cookie is set
+if (process.env.HITL_TOKEN) for (const c of Object.values(ctx)) await (await c.newPage()).goto(base + '?token=' + process.env.HITL_TOKEN);
 for (const [size, name, hash, then] of shots) {
   const page = await ctx[size].newPage();
   await page.goto(base + hash, { waitUntil: 'load' });

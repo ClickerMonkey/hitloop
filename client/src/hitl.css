@@ -1509,3 +1509,114 @@ body {
 .group-title.plain {
   font-family: var(--font);
 }
+
+/* question options: the label and its "Recommended" tag on one wrapping row, the tick on the first line's centre */
+.opt-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-height: 22px;
+  line-height: 1.35;
+}
+.opt-label .rec-tag {
+  margin-left: 0;
+  vertical-align: 0;
+}
+.opt-main {
+  padding-top: 0;
+}
+.opt.other textarea {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--text);
+  resize: none;
+  padding: 2px 0;
+}
+
+/* ── phones: nothing cut off, nothing scrolling sideways, no wasted rows ── */
+.vbtn .short {
+  display: none;
+}
+@media (max-width: 480px) {
+  .vbtn .long {
+    display: none;
+  }
+  .vbtn .short {
+    display: inline;
+  }
+}
+/* question filters wrap instead of scrolling */
+.filters {
+  flex-wrap: wrap;
+  overflow: visible;
+  mask-image: none;
+  padding-right: 0;
+}
+.tools-row {
+  align-items: flex-start;
+}
+@media (max-width: 759px) {
+  /* the line above a title wraps rather than trailing off */
+  .eyebrow {
+    white-space: normal;
+    display: inline;
+    line-height: 1.5;
+  }
+  .eyebrow::before {
+    display: inline-block;
+    margin-right: 6px;
+    vertical-align: 2px;
+  }
+  /* the project's sections: icon beside the words, two to a row */
+  .proj-links .tile {
+    grid-template-columns: 36px minmax(0, 1fr);
+    column-gap: 10px;
+    align-items: center;
+    padding: var(--space-3);
+  }
+  .proj-links .tile > .i {
+    grid-row: span 2;
+    margin: 0;
+  }
+  .proj-links .tile .faint {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* "Recommended": a tag sitting on the option's top edge, centred, so it never crowds the label */
+.opt {
+  position: relative;
+}
+.opt .rec-tag {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  background: color-mix(in oklab, var(--ok) 14%, var(--surface));
+  border: 1px solid color-mix(in oklab, var(--ok) 35%, var(--surface));
+  box-shadow: 0 1px 2px var(--shadow-color);
+}
+/* room above a row that has one, so the tag isn't cut off */
+.opts:has(.rec-tag) {
+  padding-top: 10px;
+}
+
+/* a folder: its heading, its controls, the list and the README, with the same gap between each */
+.folder-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+.folder-page > :empty {
+  display: none;
+}

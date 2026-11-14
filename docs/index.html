@@ -619,13 +619,15 @@
         gap: 12px;
       }
       .points li {
-        display: flex;
-        gap: 12px;
+        position: relative;
+        padding-left: 34px;
         font-weight: 550;
       }
       .points li::before {
         content: '';
-        flex: none;
+        position: absolute;
+        left: 0;
+        top: 1px;
         width: 22px;
         height: 22px;
         margin-top: 1px;
@@ -1045,6 +1047,96 @@
           justify-content: center;
         }
       }
+      /* cards and steps: the icon or number beside the heading, not a row of its own */
+      .card {
+        display: grid;
+        grid-template-columns: 40px minmax(0, 1fr);
+        column-gap: 14px;
+        align-items: center;
+      }
+      .card h3 {
+        margin: 0;
+      }
+      .card p {
+        grid-column: 2;
+        margin-top: 4px;
+      }
+      .step {
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr);
+        column-gap: 12px;
+        align-items: center;
+      }
+      .step h3 {
+        margin: 0;
+      }
+      .step p {
+        grid-column: 1 / -1;
+        margin-top: 10px;
+      }
+      .skill-h {
+        font-size: clamp(28px, 3.6vw, 40px);
+        margin-top: 12px;
+      }
+      .skill-lede {
+        font-size: 17px;
+      }
+      .skill > * {
+        min-width: 0;
+      }
+      @media (max-width: 880px) {
+        .skill {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 28px;
+        }
+        .skill pre {
+          max-height: 320px;
+        }
+      }
+      @media (max-width: 560px) {
+        .tabs {
+          display: flex;
+          width: 100%;
+        }
+        .tabs button {
+          flex: 1;
+          padding: 0 8px;
+        }
+        .cmd {
+          padding: 12px 10px 12px 14px;
+        }
+        .cmd code {
+          font-size: 13.5px;
+        }
+        .card,
+        .step {
+          padding: 18px;
+        }
+        .cta .btn,
+        .cta .command {
+          width: 100%;
+          justify-content: space-between;
+        }
+        .cta .btn {
+          justify-content: center;
+        }
+        .hero h1 {
+          font-size: 40px;
+        }
+        .lede {
+          font-size: 17px;
+        }
+        .feature h3 {
+          font-size: 26px;
+        }
+        section {
+          padding: 56px 0;
+        }
+        .feature {
+          margin-top: 56px;
+          gap: 28px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -1207,8 +1299,8 @@
           <p class="lede">The CLI and the MCP server do the same things. <code>npx hitloop --help</code> lists every option.</p>
           <div class="tabs" role="tablist">
             <button role="tab" aria-selected="true" data-tab="you">You</button>
-            <button role="tab" aria-selected="false" data-tab="cli">The agent (CLI)</button>
-            <button role="tab" aria-selected="false" data-tab="mcp">The agent (MCP tools)</button>
+            <button role="tab" aria-selected="false" data-tab="cli">Agent: CLI</button>
+            <button role="tab" aria-selected="false" data-tab="mcp">Agent: MCP</button>
           </div>
           <div class="panel" data-panel="you">
             <div class="cmds">
@@ -1248,8 +1340,8 @@
           <div class="skill reveal">
             <div>
               <span class="eyebrow">Claude skill</span>
-              <h2 style="font-size: clamp(28px, 3.6vw, 40px); margin-top: 12px">Teach your agent when to ask you</h2>
-              <p class="lede" style="font-size: 17px">A skill tells Claude when to use hitl (lots of questions, anything to review, anything risky) and exactly how. Copy it, or download it into your skills folder.</p>
+              <h2 class="skill-h">Teach your agent when to ask you</h2>
+              <p class="lede skill-lede">A skill tells Claude when to use hitl (lots of questions, anything to review, anything risky) and exactly how. Copy it, or download it into your skills folder.</p>
               <div class="cta">
                 <button class="btn primary" id="copy-skill">Copy the skill</button>
                 <a class="btn ghost" href="SKILL.md" download="SKILL.md">Download SKILL.md</a>

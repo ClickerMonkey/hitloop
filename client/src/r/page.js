@@ -480,7 +480,7 @@ function paintFeedback(card, it) {
   if (!isReview()) bar.innerHTML = '';
   else {
     bar.innerHTML = `<div class="verdicts${ro() ? ' ro' : ''}">${['ok', 'changes', 'no']
-      .map((k) => `<button class="vbtn v-${k}${v?.verdict === k ? ' on' : ''}" data-verdict="${k}" ${ro() ? 'disabled' : ''}>${icon(VERDICT[k].icon, 16)}<span>${VERDICT[k].label}</span></button>`)
+      .map((k) => `<button class="vbtn v-${k}${v?.verdict === k ? ' on' : ''}" data-verdict="${k}" ${ro() ? 'disabled' : ''}>${icon(VERDICT[k].icon, 16)}<span class="long">${VERDICT[k].label}</span><span class="short">${VERDICT[k].short}</span></button>`)
       .join('')}</div>${
       v && (v.verdict !== 'ok' || v.note)
         ? `<textarea class="vnote" rows="1" data-grow placeholder="${v.verdict === 'ok' ? 'Anything to add?' : 'What should change?'}" ${ro() ? 'disabled' : ''}>${esc(v.note || '')}</textarea>`

@@ -90,7 +90,7 @@ export function renderInbox(el, key = '') {
 
 function projectLinks(p) {
   const k = encodeURIComponent(p.key);
-  return `<nav class="proj-links"><a class="tile" href="#/p/${k}/files/">${icon('folder', 20)}<b>Files</b><span class="faint">Browse, search, open</span></a><a class="tile" href="#/p/${k}/files/?m=changes">${icon('diff', 20)}<b>Changes</b><span class="faint">Since the last commit</span></a><a class="tile" href="#/p/${k}/notes">${icon('chat', 20)}<b>Notes</b><span class="faint">${p.notes.open ? `${p.notes.open} open` : 'For the agent'}</span></a><a class="tile" href="#/p/${k}/decisions">${icon('check', 20)}<b>Decisions</b><span class="faint">What you decided</span></a></nav>`;
+  return `<nav class="proj-links"><a class="tile" href="#/p/${k}/files/">${icon('folder', 20)}<b>Files</b><span class="faint">Browse &amp; search</span></a><a class="tile" href="#/p/${k}/files/?m=changes">${icon('diff', 20)}<b>Changes</b><span class="faint">Since last commit</span></a><a class="tile" href="#/p/${k}/notes">${icon('chat', 20)}<b>Notes</b><span class="faint">${p.notes.open ? `${p.notes.open} open` : 'For the agent'}</span></a><a class="tile" href="#/p/${k}/decisions">${icon('check', 20)}<b>Decisions</b><span class="faint">What you decided</span></a></nav>`;
 }
 
 // ── the decision log ──
