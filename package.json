@@ -1,0 +1,74 @@
+{
+  "name": "hitl",
+  "version": "0.1.0",
+  "description": "Human In The Loop: where an AI agent and its human meet. The agent asks questions, shows you things and asks for reviews and approvals; you answer, review, mark up pictures and browse the project's files on your phone or computer, and everything you say lands in one feed the agent reads. A web page, a CLI and an MCP server.",
+  "type": "module",
+  "bin": {
+    "hitl": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "schema",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/build-client.mjs && node scripts/build-schema.mjs",
+    "build:client": "node scripts/build-client.mjs",
+    "watch:client": "node scripts/build-client.mjs --watch",
+    "dev": "npm run build && node dist/cli.js",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "demo": "node scripts/demo.mjs",
+    "screenshots": "node scripts/screenshots.mjs",
+    "prepack": "npm run build"
+  },
+  "keywords": [
+    "human-in-the-loop",
+    "hitl",
+    "llm",
+    "agent",
+    "mcp",
+    "mcp-server",
+    "claude",
+    "claude-code",
+    "code-review",
+    "review",
+    "approval",
+    "questions",
+    "file-browser",
+    "code-viewer",
+    "markdown",
+    "mermaid",
+    "git",
+    "diff",
+    "phone",
+    "cli",
+    "server"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ClickerMonkey/hitl.git"
+  },
+  "homepage": "https://github.com/ClickerMonkey/hitl#readme",
+  "bugs": {
+    "url": "https://github.com/ClickerMonkey/hitl/issues"
+  },
+  "author": "ClickerMonkey",
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "dompurify": "^3.4.17",
+    "esbuild": "^0.28.2",
+    "marked": "^18.2.0",
+    "marked-footnote": "^1.4.0",
+    "mermaid": "^12.3.0",
+    "playwright": "^1.64.1",
+    "shiki": "^4.6.0",
+    "temml": "^0.14.0",
+    "typescript": "^5.9.3"
+  }
+}
