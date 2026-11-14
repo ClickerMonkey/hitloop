@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>hitl — Human In The Loop for AI agents</title>
-    <meta name="description" content="Your agent asks, shows and waits for your OK. You answer, review and approve from your phone. hitl puts a human in the loop of any AI coding agent: questions, reviews, approvals and notes, in one inbox, saved in your project." />
+    <meta name="description" content="Your agent asks, shows and waits for your OK. You answer, review and approve, at your desk or on your phone. hitl puts a human in the loop of any AI coding agent: questions, reviews, approvals and notes, in one inbox, saved in your project." />
     <meta property="og:title" content="hitl — Human In The Loop" />
-    <meta property="og:description" content="Your agent asks. You decide, from your phone. Questions, reviews, approvals and notes for AI coding agents, in one inbox." />
+    <meta property="og:description" content="Your agent asks. You decide, at your desk or on your phone. Questions, reviews, approvals and notes for AI coding agents, in one inbox." />
     <meta property="og:image" content="screens/phone-inbox.jpg" />
     <meta name="theme-color" content="#5b5fd6" />
     <link rel="icon" href="icon.svg" />
@@ -333,13 +333,9 @@
         background: #121323;
         z-index: 1;
       }
-      .hero .phone {
-        transform: rotate(-3deg);
-        animation: float 7s ease-in-out infinite;
-      }
       @keyframes float {
         50% {
-          transform: rotate(-2deg) translateY(-10px);
+          transform: rotate(-3deg) translateY(-10px);
         }
       }
       .bubble {
@@ -371,24 +367,24 @@
         flex: none;
       }
       .b1 {
-        top: 14%;
-        left: -6%;
+        top: -2%;
+        right: -4%;
         animation-delay: 0.5s;
       }
       .b1 i {
         background: #fde8eb;
       }
       .b2 {
-        top: 47%;
-        right: -9%;
+        top: 58%;
+        right: -8%;
         animation-delay: 1s;
       }
       .b2 i {
         background: #e3f6ec;
       }
       .b3 {
-        bottom: 12%;
-        left: -2%;
+        bottom: -6%;
+        left: 26%;
         animation-delay: 1.5s;
       }
       .b3 i {
@@ -408,10 +404,128 @@
           padding-top: 24px;
         }
         .b1 {
-          left: 0;
+          right: 0;
         }
         .b2 {
           right: 0;
+          top: 40%;
+        }
+        .b3 {
+          left: 0;
+          bottom: 8%;
+        }
+      }
+
+      /* a browser window */
+      .browser {
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: var(--shadow-lg), 0 0 0 1px rgba(20, 21, 43, 0.08);
+      }
+      .browser .chrome {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        height: 34px;
+        padding: 0 14px;
+        background: #eef0f7;
+        border-bottom: 1px solid var(--line);
+      }
+      .browser .chrome i {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #d6d8e6;
+      }
+      .browser .chrome i:first-child {
+        background: #ff6b6b;
+      }
+      .browser .chrome i:nth-child(2) {
+        background: #ffc94d;
+      }
+      .browser .chrome i:nth-child(3) {
+        background: #3ecf72;
+      }
+      .browser .chrome span {
+        flex: 1;
+        margin: 0 40px 0 12px;
+        height: 22px;
+        line-height: 22px;
+        border-radius: 6px;
+        background: #fff;
+        color: var(--ink-3);
+        font: 12px var(--font);
+        text-align: center;
+      }
+      .hero-stage {
+        min-height: 520px;
+      }
+      .hero-stage .browser {
+        width: 112%;
+        max-width: 640px;
+        margin-left: 6%;
+        transform: rotate(1.5deg);
+      }
+      .hero-stage .phone {
+        position: absolute;
+        left: -4%;
+        bottom: -28px;
+        width: 190px;
+        transform: rotate(-4deg);
+        animation: float 7s ease-in-out infinite;
+      }
+      .combo {
+        position: relative;
+        width: 100%;
+        padding: 0 0 48px;
+      }
+      .combo .browser {
+        width: 92%;
+      }
+      .combo .phone {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 170px;
+      }
+      .desk-pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-top: 40px;
+        text-align: left;
+      }
+      @media (max-width: 520px) {
+        .b2,
+        .b3 {
+          display: none;
+        }
+        .b1 {
+          top: -14px;
+          right: 8px;
+        }
+      }
+      @media (max-width: 880px) {
+        .hero-stage {
+          min-height: 0;
+          padding-bottom: 40px;
+        }
+        .hero-stage .browser {
+          width: 100%;
+          margin: 0;
+        }
+        .hero-stage .phone {
+          width: 120px;
+          left: auto;
+          right: 4px;
+          bottom: 0;
+        }
+        .combo .phone {
+          width: 120px;
+        }
+        .desk-pair {
+          grid-template-columns: 1fr;
         }
       }
 
@@ -453,7 +567,7 @@
 
       /* sections */
       section {
-        padding: 96px 0;
+        padding: 72px 0;
       }
       .center {
         text-align: center;
@@ -526,11 +640,9 @@
       .pic::before {
         content: '';
         position: absolute;
-        inset: 8% 4%;
+        inset: -6% -4%;
         z-index: -1;
-        border-radius: 40px;
-        background: var(--grad-soft);
-        filter: blur(2px);
+        background: radial-gradient(closest-side, rgba(110, 90, 240, 0.16), transparent);
       }
       .pic .pair {
         display: flex;
@@ -583,7 +695,7 @@
         gap: 28px;
         overflow-x: auto;
         scroll-snap-type: x mandatory;
-        padding: 48px max(24px, calc((100vw - 260px) / 2)) 24px;
+        padding: 48px max(24px, calc((100vw - var(--wrap)) / 2 + 24px)) 24px;
         scrollbar-width: none;
       }
       .reel::-webkit-scrollbar {
@@ -796,13 +908,21 @@
         display: block;
         margin-top: 6px;
         color: var(--ink);
-        word-break: break-all;
+        white-space: nowrap;
+        overflow-x: auto;
+        padding-bottom: 4px;
+        cursor: copy;
       }
       @media (max-width: 880px) {
         .skill {
           grid-template-columns: 1fr;
           padding: 28px 22px;
         }
+      }
+
+      .steps,
+      .cards {
+        text-align: left;
       }
 
       /* trust */
@@ -949,8 +1069,8 @@
         <div class="wrap">
           <div>
             <span class="eyebrow">Human In The Loop</span>
-            <h1>Your agent asks.<br /><span class="grad-text">You decide.</span><br />From your phone.</h1>
-            <p class="lede">hitl is where an AI coding agent and its human meet. It asks you questions, shows you its work and waits at a gate for your OK; you answer, review, mark up screenshots and browse the code, anywhere. Everything you say lands in one feed the agent reads.</p>
+            <h1>Your agent asks.<br /><span class="grad-text">You decide.</span><br />From anywhere.</h1>
+            <p class="lede">hitl is where an AI coding agent and its human meet. It asks you questions, shows you its work and waits at a gate for your OK. You answer, review, mark up screenshots and browse the code: in a browser tab at your desk, or on your phone when you step away. Everything you say lands in one feed the agent reads.</p>
             <div class="cta" id="start">
               <span class="command"><span><span class="dollar">$</span> npx hitloop init</span><button class="copy" data-copy="npx hitloop init" aria-label="Copy the command"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg></button></span>
               <a class="btn soft" href="#skill">Get the Claude skill</a>
@@ -958,10 +1078,12 @@
             <ul class="checks">
               <li>Free and open source</li>
               <li>Runs on your computer</li>
+              <li>Desktop, tablet and phone</li>
               <li>Works with Claude Code &amp; any MCP agent</li>
             </ul>
           </div>
-          <div class="stage">
+          <div class="stage hero-stage">
+            <div class="browser"><div class="chrome"><i></i><i></i><i></i><span>localhost:4199</span></div><img src="screens/desktop-review.jpg" alt="A review in hitl on a desktop: a file with a line comment and the agent's reply" /></div>
             <div class="phone"><img src="screens/phone-inbox.jpg" alt="hitl's inbox on a phone: an approval waiting, a review, questions" /></div>
             <div class="bubble b1"><i>🙋</i><span>Deploy to production? <small>· waiting</small></span></div>
             <div class="bubble b2"><i>✓</i><span>Approved <small>· “after 5pm”</small></span></div>
@@ -986,9 +1108,9 @@
             <div>
               <span class="tag"><i style="background: #fde8eb">🙋</i>Approvals</span>
               <h3>A real yes or no before anything risky</h3>
-              <p>The agent wants to deploy, delete data or send something. It asks, your phone buzzes, you read what will happen and how to undo it, and tap <b>Approve</b> or <b>Refuse</b>. It waits until you do.</p>
+              <p>The agent wants to deploy, delete data or send something. It asks, you get a notification (on your desktop or your phone), you read what will happen and how to undo it, and tap <b>Approve</b> or <b>Refuse</b>. It waits until you do.</p>
               <ul class="points">
-                <li>Notifications within seconds (ntfy or any webhook)</li>
+                <li>A notification within seconds (ntfy or any webhook)</li>
                 <li><code>hitl approve</code> exits 0 or 1, so scripts can gate on you too</li>
                 <li>An optional hook stops Claude finishing while an approval waits</li>
               </ul>
@@ -999,7 +1121,7 @@
           <div class="feature reveal">
             <div>
               <span class="tag"><i style="background: #e3f6ec">✓</i>Reviews</span>
-              <h3>Review its work like a pull request, on the couch</h3>
+              <h3>Review its work like a pull request, wherever you are</h3>
               <p>Files, diffs against main, proposed code, screenshots, diagrams, HTML mockups. Give each one <b>Looks good</b>, <b>Needs changes</b> or <b>No</b>, comment on any line, or draw around the part of a picture you mean.</p>
               <ul class="points">
                 <li>Swipe through them one at a time: right is good, left needs work</li>
@@ -1008,9 +1130,9 @@
               </ul>
             </div>
             <div class="pic">
-              <div class="pair">
-                <div class="phone"><img src="screens/phone-review.jpg" alt="A review with a line comment and the agent's reply" loading="lazy" /></div>
-                <div class="phone"><img src="screens/phone-compare.jpg" alt="Before and after slider on two screenshots" loading="lazy" /></div>
+              <div class="combo">
+                <div class="browser"><div class="chrome"><i></i><i></i><i></i><span>A review</span></div><img src="screens/desktop-review.jpg" alt="A review on a desktop: verdicts and comments on lines" loading="lazy" /></div>
+                <div class="phone"><img src="screens/phone-compare.jpg" alt="Before and after slider on two screenshots, on a phone" loading="lazy" /></div>
               </div>
             </div>
           </div>
@@ -1032,24 +1154,25 @@
           <div class="feature reveal">
             <div>
               <span class="tag"><i style="background: #fff3dc">📁</i>Files &amp; notes</span>
-              <h3>The whole project in your pocket, and a way to say “fix this”</h3>
-              <p>Browse and search the code with git colours, diffs and history; markdown, Mermaid, images and CSVs drawn properly. Tap any line or picture to leave the agent a note, with a photo from your phone if it helps.</p>
+              <h3>The whole project at hand, and a way to say “fix this”</h3>
+              <p>Browse and search the code with git colours, diffs and history; markdown, Mermaid, images and CSVs drawn properly. Click or tap any line or picture to leave the agent a note, with a screenshot or a photo if it helps.</p>
               <ul class="points">
                 <li>Big files and folders open quickly</li>
                 <li>Notes come back resolved, with what the agent did</li>
                 <li>Every decision you make is searchable, so it isn't asked twice</li>
               </ul>
             </div>
-            <div class="pic"><img class="shot" src="screens/desktop-files.jpg" alt="Files: the folder tree, a folder and a file's changes side by side" loading="lazy" /></div>
+            <div class="pic"><div class="browser"><div class="chrome"><i></i><i></i><i></i><span>Files</span></div><img src="screens/desktop-files.jpg" alt="Files: the folder tree, a folder and a file's changes side by side" loading="lazy" /></div></div>
           </div>
         </div>
       </section>
 
       <section class="band" id="screens">
         <div class="wrap center reveal">
-          <span class="eyebrow">Made for your phone, great on a desktop</span>
+          <span class="eyebrow">At your desk or on the go</span>
           <h2>One inbox for everything waiting on you</h2>
-          <p class="lede">Every project on one page, most urgent first. Add it to your home screen and it opens like an app.</p>
+          <p class="lede">Every project on one page, most urgent first. Side by side on a big screen; on a phone, add it to your home screen and it opens like an app.</p>
+          <div class="desk-pair"><div class="browser"><div class="chrome"><i></i><i></i><i></i><span>Inbox</span></div><img src="screens/desktop-inbox.jpg" alt="The inbox on a desktop" loading="lazy" /></div><div class="browser"><div class="chrome"><i></i><i></i><i></i><span>Decisions</span></div><img src="screens/desktop-decisions.jpg" alt="The decision log on a desktop" loading="lazy" /></div></div>
         </div>
         <div class="reel" id="reel">
           <figure><div class="phone"><img src="screens/phone-inbox.jpg" alt="" loading="lazy" /></div><figcaption>The inbox, every project</figcaption></figure>
@@ -1070,7 +1193,7 @@
           <h2>Four steps, no context switching</h2>
           <div class="steps">
             <div class="step"><h3>The agent asks</h3><p>Questions, a review, or an approval: with the MCP tools or one CLI command. Each is its own file in <code>.hitl/</code>.</p></div>
-            <div class="step"><h3>Your phone buzzes</h3><p>One notification, with a link straight to it. Over your Wi-Fi or Tailscale, behind a token.</p></div>
+            <div class="step"><h3>You get a ping</h3><p>One notification on your desktop or phone, with a link straight to it. Over your Wi-Fi or Tailscale, behind a token.</p></div>
             <div class="step"><h3>You decide</h3><p>Answer, review, mark up, approve. At your own pace; it saves as you go.</p></div>
             <div class="step"><h3>It reads only what's new</h3><p><code>hitl news</code> gives the agent just what changed, compactly, then it marks each one done.</p></div>
           </div>
@@ -1090,8 +1213,8 @@
           <div class="panel" data-panel="you">
             <div class="cmds">
               <div class="cmd"><code>npx hitloop init</code><button class="copy" data-copy="npx hitloop init" aria-label="Copy">⧉</button><p>Once per project: the <code>.hitl</code> folder, the MCP server for Claude Code, a note in CLAUDE.md.</p></div>
-              <div class="cmd"><code>npx hitloop</code><button class="copy" data-copy="npx hitloop" aria-label="Copy">⧉</button><p>Start the page for every project. It prints links for your phone (LAN and Tailscale).</p></div>
-              <div class="cmd"><code>npx hitloop notify ntfy</code><button class="copy" data-copy="npx hitloop notify ntfy" aria-label="Copy">⧉</button><p>Notifications on your phone, through the free ntfy app. Or <code>notify webhook &lt;url&gt;</code>.</p></div>
+              <div class="cmd"><code>npx hitloop</code><button class="copy" data-copy="npx hitloop" aria-label="Copy">⧉</button><p>Start the page for every project. It prints links for this computer and your phone (LAN and Tailscale).</p></div>
+              <div class="cmd"><code>npx hitloop notify ntfy</code><button class="copy" data-copy="npx hitloop notify ntfy" aria-label="Copy">⧉</button><p>Notifications on your phone or desktop, through the free ntfy app. Or <code>notify webhook &lt;url&gt;</code>.</p></div>
               <div class="cmd"><code>npx hitloop hooks on --stop</code><button class="copy" data-copy="npx hitloop hooks on --stop" aria-label="Copy">⧉</button><p>Optional: don't let Claude finish while an approval or a blocking question waits.</p></div>
               <div class="cmd"><code>npx hitloop import</code><button class="copy" data-copy="npx hitloop import" aria-label="Copy">⧉</button><p>Coming from questionme or folderview? Brings in <code>.questionme/</code> and <code>.review/</code>.</p></div>
             </div>
@@ -1148,7 +1271,7 @@
           <div class="cards">
             <div class="card"><i>🏠</i><h3>Runs on your computer</h3><p>One small Node server for all your projects. No account, no cloud, no runtime dependencies.</p></div>
             <div class="card"><i>🗂️</i><h3>Saved in your project</h3><p>Plain JSON and markdown in <code>.hitl/</code>. Commit it, read it, grep it. Every request is its own file.</p></div>
-            <div class="card"><i>🔒</i><h3>A token by default</h3><p>Reachable from your phone over your Wi-Fi or Tailscale, but every request needs the token. <code>--local</code> for this computer only.</p></div>
+            <div class="card"><i>🔒</i><h3>A token by default</h3><p>Reachable from your other devices over your Wi-Fi or Tailscale, but every request needs the token. <code>--local</code> for this computer only.</p></div>
             <div class="card"><i>🧱</i><h3>Agent output is untrusted</h3><p>Markdown is sanitised, HTML mockups are sandboxed with no scripts, files can't run script on the page.</p></div>
             <div class="card"><i>🤫</i><h3>Secrets stay hidden</h3><p><code>.env</code>, keys and anything outside the project are never served, even through a link.</p></div>
             <div class="card"><i>🧩</i><h3>Any agent</h3><p>An MCP server for Claude Code and other MCP clients, and a CLI any agent or script can run.</p></div>
