@@ -2,6 +2,7 @@
 import { esc, copy } from './util.js';
 import { icon } from './icons.js';
 import { highlightLines, langOf, prepare } from './shiki.js';
+import { plain } from './highlight.js';
 import { commentsOn, href, nav, setSetting, state, where } from './state.js';
 import { composerHtml, threadHtml } from './review.js';
 
@@ -65,6 +66,14 @@ export function diffMarks(diff) {
 }
 
 // ── the code view ──
+/** long files: rows in blocks the browser lays out only near the screen (content-visibility) */
+const BLOCK = 250;
+function blocked(rows) {
+  if (rows.length <= BLOCK) return rows.join('');
+  const out = [];
+  for (let b = 0; b < rows.length; b += BLOCK) out.push(`<div class="lblock" style="contain-intrinsic-size:auto ${Math.min(BLOCK, rows.length - b) * 21}px">${rows.slice(b, b + BLOCK).join('')}</div>`);
+  return out.join('');
+}
 /** The code block's bar: what it is, and wrap / copy / download. */
 export function codeBar(caption, { download } = {}) {
   return `<figcaption class="cbar"><span class="caption">${esc(caption)}</span><span class="ctools"><button class="icon-btn${state.settings.wrap ? ' on' : ''}" data-cv="wrap" title="Wrap long lines" aria-label="Wrap long lines">${icon('wrap', 16)}</button><button class="icon-btn" data-cv="copy" title="Copy" aria-label="Copy">${icon('copy', 16)}</button>${
@@ -79,16 +88,21 @@ export function renderCode(host, { path, text, folder, marks, caption, download 
     if (html.length > 1 && html[html.length - 1] === '' && body.endsWith('\n')) html.pop();
     return html;
   };
-  const html = draw();
+  // a long file: plain text first (it shows at once), the colours after, in pieces
+  const big = body.length > 300_000;
+  const html = big ? plain(body) : draw();
+  if (big && html.length > 1 && html[html.length - 1] === '' && body.endsWith('\n')) html.pop();
   const shown = html.slice(0, MAX_LINES);
+  // each line's link: the address worked out once, the number swapped in
+  const lineHref = href({ ...where(), line: '00000' });
   const rows = shown.map((l, i) => {
     const n = i + 1;
     const mk = marks?.get(n);
-    return `<div class="ln" data-n="${n}"><a class="gut" href="${href({ ...where(), line: String(n) })}" data-n="${n}">${n}</a><span class="mk${mk ? ' ' + mk : ''}"></span><span class="src">${l || ' '}</span></div>`;
+    return `<div class="ln" data-n="${n}"><a class="gut" href="${lineHref.replace('line=00000', 'line=' + n)}" data-n="${n}">${n}</a><span class="mk${mk ? ' ' + mk : ''}"></span><span class="src">${l || ' '}</span></div>`;
   });
   const lang = langOf(path);
   const label = caption ?? `${lang || 'text'} · ${shown.length.toLocaleString()} ${shown.length === 1 ? 'line' : 'lines'}`;
-  host.innerHTML = `<figure class="ui-code">${codeBar(label, { download })}<div class="code${state.settings.wrap ? ' wrap' : ''}${state.settings.review ? ' review' : ''}" tabindex="0" data-path="${esc(path)}" data-folder="${esc(folder)}">${rows.join('')}</div></figure>${
+  host.innerHTML = `<figure class="ui-code">${codeBar(label, { download })}<div class="code${state.settings.wrap ? ' wrap' : ''}${state.settings.review ? ' review' : ''}" tabindex="0" data-path="${esc(path)}" data-folder="${esc(folder)}">${blocked(rows)}</div></figure>${
     html.length > MAX_LINES ? `<p class="note">Showing the first ${MAX_LINES.toLocaleString()} of ${html.length.toLocaleString()} lines.</p>` : ''
   }`;
   const code = host.querySelector('.code');
@@ -99,13 +113,19 @@ export function renderCode(host, { path, text, folder, marks, caption, download 
   const sel = parseLines(where().line);
   if (sel) select(code, sel[0], sel[1], true);
   // Shiki's colours, once the grammar is in: redraw each line's text in place (selection and threads stay)
-  prepare(path).then((ok) => {
+  (big ? new Promise((r) => setTimeout(() => r(true), 80)) : prepare(path)).then((ok) => {
     if (!ok || !code.isConnected) return;
     const better = draw();
     const srcs = code.querySelectorAll('.ln > .src');
-    srcs.forEach((s, i) => {
-      if (better[i] !== undefined) s.innerHTML = better[i] || ' ';
-    });
+    // in pieces, in idle time, so a long file never freezes the page
+    let i = 0;
+    const step = () => {
+      if (!code.isConnected) return;
+      const until = Math.min(srcs.length, i + 600);
+      for (; i < until; i++) if (better[i] !== undefined) srcs[i].innerHTML = better[i] || ' ';
+      if (i < srcs.length) (window.requestIdleCallback || ((f) => setTimeout(f, 16)))(step);
+    };
+    step();
   });
   return code;
 }
@@ -139,7 +159,7 @@ export function placeThreads(code) {
   if (!code) return;
   const path = code.dataset.path;
   const folder = code.dataset.folder;
-  code.querySelectorAll(':scope > .threads').forEach((t) => t.remove());
+  code.querySelectorAll('.threads').forEach((t) => t.remove());
   code.querySelectorAll('.ln.has-c').forEach((l) => l.classList.remove('has-c', 'has-open'));
   const list = commentsOn(path).filter((c) => c.line && (state.settings.resolved || c.status === 'open'));
   const byEnd = new Map();
@@ -167,7 +187,7 @@ function select(code, a, b, scroll) {
   code.sel = [a, b];
   code.querySelectorAll('.ln.sel').forEach((l) => l.classList.remove('sel'));
   for (let n = a; n <= b; n++) code.querySelector(`.ln[data-n="${n}"]`)?.classList.add('sel');
-  code.querySelector(':scope > .selbar')?.remove();
+  code.querySelector('.selbar')?.remove();
   const last = code.querySelector(`.ln[data-n="${b}"]`);
   if (!last) return;
   const bar = document.createElement('div');
@@ -181,17 +201,17 @@ function select(code, a, b, scroll) {
 function clearSelection(code) {
   code.sel = null;
   code.querySelectorAll('.ln.sel').forEach((l) => l.classList.remove('sel'));
-  code.querySelector(':scope > .selbar')?.remove();
+  code.querySelector('.selbar')?.remove();
   nav({ line: '' }, true);
 }
 
 export function openComposer(code, path, a, b) {
-  code.querySelectorAll(':scope > .composer').forEach((c) => c.remove());
+  code.querySelectorAll('.composer').forEach((c) => c.remove());
   const last = code.querySelector(`.ln[data-n="${b}"]`);
   if (!last) return;
   const anchor = last.nextElementSibling?.classList.contains('threads') ? last.nextElementSibling : last;
   anchor.insertAdjacentHTML('afterend', composerHtml(path, a, b));
-  code.querySelector(':scope > .selbar')?.remove();
+  code.querySelector('.selbar')?.remove();
   const ta = code.querySelector('.composer textarea');
   ta.focus();
   ta.scrollIntoView({ block: 'nearest' });

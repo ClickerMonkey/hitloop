@@ -340,6 +340,7 @@ function renderedOrSource(body, it, card, text, drawn) {
     tab.innerHTML = '<div class="md rv-rendered"></div>';
     drawn(tab.firstElementChild);
     card.lines = null;
+    paintCommentList(card, it);
   };
   showView();
   body.querySelector('.rv-tabs').onclick = (e) => {
@@ -488,10 +489,7 @@ function paintFeedback(card, it) {
     const ta = bar.querySelector('.vnote');
     if (ta) grow(ta);
   }
-  const box = card.querySelector('.rv-comments');
-  // comments on lines sit under their lines; marked areas and the rest are listed here
-  const list = commentsOf(it.id).filter((c) => !c.line || (!card.lines && !card.diff));
-  box.innerHTML = list.map((c) => threadHtml(c, it)).join('');
+  paintCommentList(card, it);
   if (card.lines) placeLineThreads(card, it);
   if (card.diff) placeDiffThreads(card, it);
   if (card.picwrap) paintPicMarks(card, it);
@@ -500,8 +498,17 @@ function paintFeedback(card, it) {
   if (view.mode === 'swipe') paintSwipeBar();
 }
 
+/** comments listed under the item: on lines only while there are no lines to put them under */
+function paintCommentList(card, it) {
+  const box = card.querySelector('.rv-comments');
+  if (!box || box.contains(document.activeElement)) return;
+  const list = commentsOf(it.id).filter((c) => !c.line || (!card.lines && !card.diff));
+  box.innerHTML = list.map((c) => threadHtml(c, it)).join('');
+}
+
 function placeLineThreads(card, it) {
   const v = card.lines;
+  paintCommentList(card, it);
   if (!v) return;
   v.clearPlaced();
   for (const c of commentsOf(it.id).filter((x) => x.line && x.side !== 'old')) {
@@ -514,6 +521,7 @@ function placeLineThreads(card, it) {
 
 function placeDiffThreads(card, it) {
   const diff = card.diff;
+  paintCommentList(card, it);
   if (!diff) return;
   diff.querySelectorAll('.under').forEach((x) => x.remove());
   for (const c of commentsOf(it.id).filter((x) => x.line)) {
@@ -598,9 +606,9 @@ function paintProgress() {
   if (tools && !tools.contains(document.activeElement)) paintTools();
 }
 
-function paintFinish() {
+function paintFinish(force = false) {
   const box = main.querySelector('#rv-finish');
-  if (!box || box.contains(document.activeElement)) return;
+  if (!box || (!force && box.contains(document.activeElement))) return;
   const o = fb().overall;
   const s = view.data.summary;
   if (isGate()) {
@@ -891,7 +899,7 @@ document.addEventListener('click', async (e) => {
       }
       await post('overall', { verdict: v || null, note });
       await refresh();
-      paintFinish();
+      paintFinish(true);
       paintProgress();
       if (v) toast(isGate() ? (v === 'ok' ? 'Approved: the agent is told' : 'Sent: the agent is told') : 'Sent to the agent');
     } catch (err) {

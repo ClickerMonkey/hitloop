@@ -7,7 +7,7 @@
 //   #/p/<key>/decisions         what you decided
 //   #/p/<key>/q/<set>[/<id>]    a question set
 //   #/p/<key>/r/<id>[/<item>]   a review, a showing or an approval
-import { $, api, esc, emit, store, toast, debounce } from './util.js';
+import { $, api, esc, emit, on, store, toast, debounce } from './util.js';
 import { enterProject, projectOf, setSetting, state, where } from './state.js';
 import { icon } from './icons.js';
 import { filesChanged, filesHome, leaveFiles, loadProjectFiles, notesChanged, paintBar, showFiles, wireFiles, busyTyping } from './files.js';
@@ -270,6 +270,11 @@ async function paintHooks(box) {
   };
 }
 
+// notes changed here (written, resolved, deleted): the Notes page shows it at once
+on('comments', () => {
+  if (current.page === 'notes' && !busyTyping($('main'))) renderReviewPage($('main'), current.filter, (f) => (location.hash = `#/p/${encodeURIComponent(current.key)}/notes${f ? '?f=' + f : ''}`));
+});
+
 // ── live ──
 const loadHub = async () => {
   state.hub = await api('api/info', { hub: true });
@@ -292,10 +297,10 @@ function connect() {
     const d = JSON.parse(ev.data);
     if (d.project === state.project) filesChanged(d);
   });
-  es.addEventListener('notes', (ev) => {
+  es.addEventListener('notes', async (ev) => {
     const d = JSON.parse(ev.data);
     if (d.project !== state.project) return refreshHub();
-    notesChanged();
+    await notesChanged();
     if (current.page === 'notes' && !busyTyping($('main'))) renderReviewPage($('main'), current.filter, (f) => (location.hash = `#/p/${encodeURIComponent(current.key)}/notes${f ? '?f=' + f : ''}`));
     refreshHub();
   });

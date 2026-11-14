@@ -27,7 +27,7 @@ export function linesView(host, { text, name = '', first = 1, caption, onComment
       const mk = marks?.get(num);
       rows.push(`<div class="ln" data-n="${num}"><button class="gut" type="button" data-n="${num}" tabindex="-1">${num}</button>${marks ? `<span class="mk${mk ? ' ' + mk : ''}"></span>` : ''}<span class="src">${html[i] || ' '}</span></div>`);
     }
-    blocks.push(`<div class="lblock" style="contain-intrinsic-size:auto ${Math.min(BLOCK, n - b) * 21}px">${rows.join('')}</div>`);
+    blocks.push(n > BLOCK ? `<div class="lblock" style="contain-intrinsic-size:auto ${Math.min(BLOCK, n - b) * 21}px">${rows.join('')}</div>` : rows.join(''));
   }
   host.innerHTML = `<figure class="ui-code lines-view">${codeBar(caption ?? `${name || 'text'} · ${n.toLocaleString()} line${n === 1 ? '' : 's'}`)}<div class="code${state.settings.wrap ? ' wrap' : ''}" tabindex="0">${blocks.join('')}</div></figure>`;
   const code = host.querySelector('.code');

@@ -40,6 +40,14 @@ function sorted(es) {
   return es;
 }
 
+/** a big folder: rows in blocks the browser lays out only near the screen */
+function chunked(rows, h) {
+  if (rows.length <= 300) return rows.join('');
+  const out = [];
+  for (let b = 0; b < rows.length; b += 200) out.push(`<div class="rblock" style="contain-intrinsic-size:auto ${Math.min(200, rows.length - b) * h}px">${rows.slice(b, b + 200).join('')}</div>`);
+  return out.join('');
+}
+
 /** README text by path and modified time, so a redraw shows it at once (no "Loading…" flash) */
 const readmes = new Map();
 
@@ -86,7 +94,7 @@ export async function renderFolder(m) {
     ? `<p class="empty">${filter ? 'Nothing matches.' : 'Nothing in this folder.'}</p>`
     : grid
       ? `<div class="grid">${shown.map(tile).join('')}</div>`
-      : `<div class="rows">${shown.map(row).join('')}</div>`;
+      : `<div class="rows">${chunked(shown.map(row), 40)}</div>`;
   const readme = es.find((e) => /^readme(.md|.markdown|.txt)?$/i.test(e.name) && e.type === 'file');
   const zipName = (folder ? parts[parts.length - 1] : state.info.name) + '.zip';
   const headHtml = `<nav class="crumbs" aria-label="Folder trail">${crumbs}</nav>
