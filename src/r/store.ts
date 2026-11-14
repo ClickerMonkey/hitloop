@@ -183,12 +183,14 @@ export class Reviews {
     return id;
   }
 
-  private mutate<T>(id: string, fn: (raw: ReviewInput) => T, opts: { create?: ReviewInput; force?: boolean } = {}): { result: T; normalised: Normalised } {
+  private mutate<T>(id: string, fn: (raw: ReviewInput) => T, opts: { create?: ReviewInput; force?: boolean; fresh?: boolean } = {}): { result: T; normalised: Normalised } {
     checkId(id);
     this.ensure();
     const file = this.reviewPath(id);
     return withLock(file, () => {
       let raw: ReviewInput;
+      // a new review: another process may have taken this id since it was picked
+      if (opts.fresh && fs.existsSync(file)) throw TAKEN;
       if (fs.existsSync(file)) {
         try {
           raw = JSON.parse(stripBom(fs.readFileSync(file, 'utf8'))) as ReviewInput;
@@ -215,9 +217,16 @@ export class Reviews {
   create(head: Omit<ReviewInput, 'items'> & { id?: string }, items: ItemArg[]): { id: string; ids: string[]; normalised: Normalised } {
     const { id: wanted, ...rest } = head;
     if (wanted && this.has(wanted)) throw new StoreError(`There's already a review "${wanted}": add to it (to: "${wanted}") or leave out the id for a new one`);
-    const id = wanted ? (checkId(wanted), wanted) : this.freshId(head.title ?? '');
-    const { result, normalised } = this.mutate(id, (raw) => this.append(id, raw, items), { create: { title: head.title || id, ...rest } });
-    return { id, ids: result, normalised };
+    for (let tries = 0; ; tries++) {
+      const id = wanted ? (checkId(wanted), wanted) : this.freshId(head.title ?? '');
+      try {
+        const { result, normalised } = this.mutate(id, (raw) => this.append(id, raw, items), { create: { title: head.title || id, ...rest }, fresh: true });
+        return { id, ids: result, normalised };
+      } catch (e) {
+        if (e !== TAKEN) throw e;
+        if (wanted || tries >= 100) throw new StoreError(`There's already a review "${id}"`);
+      }
+    }
   }
 
   addItems(id: string, items: ItemArg[], patch: Partial<Pick<ReviewInput, 'title' | 'intro' | 'from'>> = {}): { ids: string[]; normalised: Normalised } {
@@ -488,6 +497,9 @@ export class Reviews {
     });
   }
 }
+
+/** thrown inside the lock when a new review's id was taken meanwhile: create picks the next one */
+const TAKEN = new Error('taken');
 
 function checkId(id: string): void {
   if (!REVIEW_ID.test(id)) throw new StoreError(`Bad review id "${id}": letters, digits, . _ - (up to 80)`);

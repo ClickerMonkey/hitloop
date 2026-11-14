@@ -173,29 +173,39 @@ function paintCounts() {
 // the project picker: every project, with what's waiting
 function projectMenu() {
   const old = $('proj-menu');
-  if (old) return old.remove();
+  if (old) {
+    $('proj').setAttribute('aria-expanded', 'false');
+    return old.remove();
+  }
   const pop = document.createElement('div');
   pop.id = 'proj-menu';
   pop.className = 'pop menu';
+  pop.setAttribute('role', 'menu');
   pop.innerHTML = state.hub.projects
     .map((p) => {
       const n = waitingIn(p);
       return `<a class="menu-item${p.key === state.project ? ' on' : ''}" href="#/p/${encodeURIComponent(p.key)}"><span class="proj-mark" style="--hue:${hueOf(p.name)}">${esc(p.name.slice(0, 1).toUpperCase())}</span><span class="grow">${esc(p.name)}</span>${n ? `<span class="count">${n}</span>` : ''}</a>`;
     })
-    .join('') + `<a class="menu-item" href="#/">${icon('home', 16)}<span class="grow">Every project</span></a>`;
+    .join('') + `<div class="menu-sep" role="separator"></div><a class="menu-item" href="#/"><span class="menu-ic">${icon('home', 16)}</span><span class="grow">Every project</span></a>`;
   const r = $('proj').getBoundingClientRect();
   pop.style.left = Math.max(8, Math.min(r.left, innerWidth - 300)) + 'px';
   pop.style.top = r.bottom + 6 + 'px';
   document.body.append(pop);
+  $('proj').setAttribute('aria-expanded', 'true');
   const away = (e) => {
     if (!pop.contains(e.target) || e.target.closest('a')) {
       if (e.target.closest?.('#proj')) return;
+      $('proj').setAttribute('aria-expanded', 'false');
       pop.remove();
       removeEventListener('pointerdown', away, true);
     }
   };
   setTimeout(() => addEventListener('pointerdown', away, true));
-  pop.onclick = (e) => e.target.closest('a') && pop.remove();
+  pop.onclick = (e) => {
+    if (!e.target.closest('a')) return;
+    $('proj').setAttribute('aria-expanded', 'false');
+    pop.remove();
+  };
 }
 
 // ── settings ──

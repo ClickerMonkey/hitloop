@@ -207,7 +207,7 @@ export async function runningHub(): Promise<HubState | undefined> {
   return (await ping(s.port, 1500, s.base ?? '/')) ? s : undefined;
 }
 
-const cliPath = () => path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'cli.js');
+const cliPath = () => path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'cli.js');
 
 /** The hub, started in the background if it isn't running. */
 export async function ensureHub(): Promise<HubState> {

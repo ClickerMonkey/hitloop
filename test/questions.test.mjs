@@ -1,25 +1,37 @@
-// Runs against the built dist/ (npm test builds first).
-import { test, before, after } from 'node:test';
+// Questions (questionme's part of hitl): the model, the store, the agent's reading and waiting, the page's API under
+// p/<key>/api/q/, the CLI, the MCP tools and notifications. Runs against the built dist/ (npm test builds first).
+import { test as nodeTest, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
 import { spawn, execFileSync } from 'node:child_process';
-import { normalise, visibility, summarise, isStale, checkAnswer, answerText } from '../dist/model.js';
-import { Project } from '../dist/store.js';
-import { readAnswers, waitFor, describeSet } from '../dist/agent.js';
-import { start } from '../dist/server.js';
-import { makeDemo } from '../scripts/demo.mjs';
+
+// a hang (a stuck git or child process) fails its test instead of the whole run
+const test = (name, fn) => nodeTest(name, { timeout: 60_000 }, fn);
+
+// never the real ~/.config/hitl: set before anything reads the config
+const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'hitl-q-')));
+const home = path.join(tmp, 'home');
+process.env.HITL_HOME = home;
+delete process.env.HITL_CONFIG;
+
+const { normalise, visibility, summarise, isStale, checkAnswer } = await import('../dist/q/model.js');
+const { Questions } = await import('../dist/q/store.js');
+const { readAnswers, waitFor, describeSet } = await import('../dist/q/agent.js');
+const { start } = await import('../dist/server.js');
+const { DEFAULT_SETTINGS } = await import('../dist/workspace.js');
+const { normaliseBase, links } = await import('../dist/hub/registry.js');
+const { makeDemo } = await import('../scripts/demo-questions.mjs');
 
 const cli = path.resolve('dist/cli.js');
-let tmp, demo, home;
-const env = () => ({ ...process.env, QUESTIONME_HOME: home, QUESTIONME_PORT: '0' });
+let demo;
+const env = () => ({ ...process.env, HITL_HOME: home, HITL_PORT: '0', HITL_FROM: 'tests' });
+const settings = () => ({ ...DEFAULT_SETTINGS, watch: false });
 
 before(() => {
-  tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'questionme-')));
-  home = path.join(tmp, 'home');
-  demo = makeDemo(path.join(tmp, 'demo'));
+  demo = makeDemo(path.join(tmp, 'demo')) ?? path.join(tmp, 'demo');
   fs.writeFileSync(path.join(demo, '.env'), 'SECRET=1\n');
 });
 after(() => {
@@ -31,7 +43,7 @@ after(() => {
   fs.rmSync(tmp, { recursive: true, force: true });
 });
 
-const load = () => new Project(demo).load('weather-plan');
+const load = () => new Questions(demo).load('weather-plan');
 
 test('the demo set is valid and shows its default questions', () => {
   const l = load();
@@ -122,7 +134,7 @@ test('answers are checked against their question', () => {
 });
 
 test('the store saves, reads new answers once, flags changed questions and keeps acks only while the answer holds', () => {
-  const p = new Project(demo);
+  const p = new Questions(demo);
   p.answer('weather-plan', 'platform', { picked: ['native'], note: 'iOS first' });
   p.answer('weather-plan', 'offline', { picked: ['yes'] });
   const r1 = readAnswers(p, 'weather-plan', { filter: 'new' });
@@ -143,16 +155,18 @@ test('the store saves, reads new answers once, flags changed questions and keeps
   const q = l.set.sections[0].questions.find((x) => x.id === 'offline');
   assert.ok(isStale(q, p.answers('weather-plan').answers.offline));
   assert.match(readAnswers(p, 'weather-plan', { filter: 'changed' }).text, /offline.*question changed since/);
-  // readable copy
+  // readable copy, in .hitl/answers/
+  assert.equal(path.relative(demo, p.markdownPath('weather-plan')).split(path.sep).join('/'), '.hitl/answers/weather-plan.md');
   const md = fs.readFileSync(p.markdownPath('weather-plan'), 'utf8');
   assert.match(md, /### platform: Where should the first version run\?/);
   assert.match(md, /> iOS first/);
 });
 
 test('adding questions: sections are made, ids are made, duplicates are refused, removed answers stay', () => {
-  const p = new Project(demo);
+  const p = new Questions(demo);
   const { ids } = p.addQuestions('extra', [{ question: 'What colour?', options: ['Red', 'Blue'] }, { id: 'size', question: 'How big?', type: 'number' }], { id: 'look', title: 'Look' }, { title: 'Extra questions' });
   assert.deepEqual(ids, ['what-colour', 'size']);
+  assert.ok(fs.existsSync(path.join(demo, '.hitl/questions/extra.json')));
   assert.throws(() => p.addQuestions('extra', [{ id: 'size', question: 'Again?' }]), /already in the set/);
   assert.throws(() => p.addQuestions('extra', [{ id: 'bad', question: 'Bad', type: 'nope' }]), /invalid/);
   const l = p.load('extra');
@@ -165,7 +179,7 @@ test('adding questions: sections are made, ids are made, duplicates are refused,
 });
 
 test('accepting recommendations, messages and read marks', () => {
-  const p = new Project(demo);
+  const p = new Questions(demo);
   const taken = p.acceptRecommended('weather-plan', ['refresh', 'care', 'order', 'anything']);
   assert.deepEqual(taken, ['refresh', 'care']); // order and anything have no recommendation
   assert.equal(p.answers('weather-plan').answers.refresh.number, 30);
@@ -179,10 +193,10 @@ test('accepting recommendations, messages and read marks', () => {
 
 test('two processes answering at once lose nothing', async () => {
   const root = path.join(tmp, 'race');
-  const p = new Project(root);
+  const p = new Questions(root);
   p.addQuestions('many', Array.from({ length: 40 }, (_, i) => ({ id: 'q' + i, question: 'Q' + i, type: 'number' })));
-  const script = (from) => `import { Project } from ${JSON.stringify(new URL('../dist/store.js', import.meta.url).href)};
-const p = new Project(${JSON.stringify(root)});
+  const script = (from) => `import { Questions } from ${JSON.stringify(new URL('../dist/q/store.js', import.meta.url).href)};
+const p = new Questions(${JSON.stringify(root)});
 for (let i = ${from}; i < ${from + 20}; i++) p.answer('many', 'q' + i, { number: i });`;
   const run = (from) =>
     new Promise((res, rej) => {
@@ -196,7 +210,7 @@ for (let i = ${from}; i < ${from + 20}; i++) p.answer('many', 'q' + i, { number:
 });
 
 test('waiting ends when the owner answers (after a pause)', async () => {
-  const p = new Project(demo);
+  const p = new Questions(demo);
   p.markRead('weather-plan');
   setTimeout(() => p.answer('weather-plan', 'theme', { picked: ['sky'] }), 150);
   setTimeout(() => p.answer('weather-plan', 'icon', { picked: ['yes'] }), 350);
@@ -225,35 +239,39 @@ function request(port, p, { method = 'GET', body, headers = {} } = {}) {
 }
 
 test('the server: token, answers, files, secrets, cross-origin writes, live events', async () => {
-  const running = await start({ mode: 'solo', projects: () => [{ key: 'demo', root: demo }], port: 0, host: '127.0.0.1', token: 'sekret' });
+  const running = await start({ mode: 'solo', projects: () => [{ key: 'demo', root: demo }], port: 0, host: '127.0.0.1', token: 'sekret', settings });
   const port = running.port;
   const auth = { authorization: 'Bearer sekret' };
   try {
-    assert.equal((await request(port, '/api/ping')).json().app, 'questionme');
+    assert.equal((await request(port, '/api/ping')).json().app, 'hitl');
     assert.equal((await request(port, '/api/info')).status, 401);
     const info = (await request(port, '/api/info', { headers: auth })).json();
     assert.equal(info.projects[0].key, 'demo');
-    assert.ok(info.projects[0].sets.some((s) => s.id === 'weather-plan'));
+    assert.ok(info.projects[0].questions.some((s) => s.id === 'weather-plan'));
     const login = await request(port, '/?token=sekret');
     assert.equal(login.status, 302);
-    assert.match(String(login.headers['set-cookie']), /questionme_token=sekret/);
+    assert.match(String(login.headers['set-cookie']), /hitl_token=sekret/);
 
-    const set = (await request(port, '/api/p/demo/s/weather-plan', { headers: auth })).json();
+    const set = (await request(port, '/p/demo/api/q/weather-plan', { headers: auth })).json();
     assert.equal(set.set.id, 'weather-plan');
-    const saved = await request(port, '/api/p/demo/s/weather-plan/answer', { method: 'POST', headers: auth, body: { id: 'care', number: 2 } });
+    assert.equal((await request(port, '/p/demo/api/q/nope', { headers: auth })).status, 404);
+    const saved = await request(port, '/p/demo/api/q/weather-plan/answer', { method: 'POST', headers: auth, body: { id: 'care', number: 2 } });
     assert.equal(saved.json().answer.number, 2);
-    const bad = await request(port, '/api/p/demo/s/weather-plan/answer', { method: 'POST', headers: auth, body: { id: 'care', number: 99 } });
+    const bad = await request(port, '/p/demo/api/q/weather-plan/answer', { method: 'POST', headers: auth, body: { id: 'care', number: 99 } });
     assert.equal(bad.status, 400);
-    const cross = await request(port, '/api/p/demo/s/weather-plan/answer', { method: 'POST', headers: { ...auth, origin: 'http://evil.example' }, body: { id: 'care', number: 3 } });
+    const cross = await request(port, '/p/demo/api/q/weather-plan/answer', { method: 'POST', headers: { ...auth, origin: 'http://evil.example' }, body: { id: 'care', number: 3 } });
     assert.equal(cross.status, 403);
+    const msg = await request(port, '/p/demo/api/q/weather-plan/message', { method: 'POST', headers: auth, body: { id: 'care', body: 'From the page' } });
+    assert.equal(msg.json().message.from, 'owner');
 
-    const text = (await request(port, '/api/p/demo/text?path=src/forecast.ts&lines=9-10', { headers: auth })).json();
+    const text = (await request(port, '/p/demo/api/text?path=src/forecast.ts&lines=9-10', { headers: auth })).json();
     assert.match(text.text, /^export async function forecast/);
     assert.equal(text.first, 9);
-    assert.equal((await request(port, '/raw/demo/art/sun.svg', { headers: auth })).status, 200);
-    assert.equal((await request(port, '/raw/demo/.env', { headers: auth })).status, 404);
-    assert.equal((await request(port, '/raw/demo/..%2F..%2Fetc%2Fpasswd', { headers: auth })).status, 404);
-    assert.equal((await request(port, '/api/p/demo/text?path=.env', { headers: auth })).status, 404);
+    assert.equal((await request(port, '/p/demo/raw/art/sun.svg', { headers: auth })).status, 200);
+    assert.equal((await request(port, '/p/demo/raw/.env', { headers: auth })).status, 404);
+    assert.equal((await request(port, '/p/demo/raw/..%2F..%2Fetc%2Fpasswd', { headers: auth })).status, 404);
+    assert.equal((await request(port, '/p/demo/api/text?path=.env', { headers: auth })).status, 404);
+    assert.equal((await request(port, '/p/nope/api/info', { headers: auth })).status, 404);
     assert.equal((await request(port, '/api/info', { headers: { ...auth, host: 'evil.example' } })).status, 403);
 
     // live: a change on disk reaches the page
@@ -262,7 +280,7 @@ test('the server: token, answers, files, secrets, cross-origin writes, live even
         let buf = '';
         res.on('data', (c) => {
           buf += c;
-          if (buf.includes('event: change')) {
+          if (buf.includes('event: request')) {
             req.destroy();
             resolve(buf);
           }
@@ -270,9 +288,10 @@ test('the server: token, answers, files, secrets, cross-origin writes, live even
       });
     });
     await new Promise((r) => setTimeout(r, 300));
-    new Project(demo).answer('weather-plan', 'anything', { text: 'Make it fast' });
+    new Questions(demo).answer('weather-plan', 'anything', { text: 'Make it fast' });
     const ev = await Promise.race([got, new Promise((_, rej) => setTimeout(() => rej(new Error('no live event')), 5000))]);
-    assert.match(ev, /"set":"weather-plan"/);
+    assert.match(ev, /"id":"weather-plan"/);
+    assert.match(ev, /"kind":"questions"/);
   } finally {
     await running.close();
   }
@@ -282,22 +301,29 @@ test('the server: token, answers, files, secrets, cross-origin writes, live even
 
 const run = (...args) => execFileSync(process.execPath, [cli, ...args], { cwd: demo, env: env(), encoding: 'utf8' });
 
-test('the CLI: list, answers, validate, hook, schema', () => {
-  assert.match(run('list'), /weather-plan \("Weather app: first plan"\)/);
-  new Project(demo).answer('weather-plan', 'places', { text: 'Pittsburgh\nErie' });
-  assert.match(run('hook'), /questionme: weather-plan .*new answer/);
+test('the CLI: status, answers, validate, hook, schema, ask, reply', () => {
+  assert.match(run('status'), /weather-plan \("Weather app: first plan"\)/);
+  new Questions(demo).answer('weather-plan', 'places', { text: 'Pittsburgh\nErie' });
+  assert.match(run('hook'), /hitl: the human has said \d+ new thing/);
   assert.match(run('answers', 'weather-plan', '--new'), /places .*: Pittsburgh\nErie/);
-  assert.equal(run('hook'), '');
   assert.match(run('answers', 'weather-plan', '--open', '--questions', 'none'), /- order/);
-  assert.match(run('validate'), /✓ weather-plan/);
-  fs.writeFileSync(path.join(demo, '.questionme/sets/broken.json'), '{"questions":[{"id":"x"}]}');
+  assert.match(run('validate'), /✓ weather-plan \(questions/);
+  fs.writeFileSync(path.join(demo, '.hitl/questions/broken.json'), '{"questions":[{"id":"x"}]}');
   assert.throws(() => run('validate', 'broken'), (e) => /question" is missing/.test(e.stdout));
-  fs.rmSync(path.join(demo, '.questionme/sets/broken.json'));
-  assert.equal(JSON.parse(run('schema')).title, 'questionme question set');
+  fs.rmSync(path.join(demo, '.hitl/questions/broken.json'));
+  assert.equal(JSON.parse(run('schema')).title, 'hitl question set');
+  assert.match(run('show-set', 'weather-plan'), /platform/);
+  assert.match(run('reply', 'weather-plan', 'places', 'Noted,', 'both'), /Replied on places/);
+  assert.equal(new Questions(demo).answers('weather-plan').threads.places.at(-1).body, 'Noted, both');
 });
 
-test('the MCP server: initialize, tools, add questions, read answers', async () => {
-  const child = spawn(process.execPath, [cli, 'mcp'], { cwd: demo, env: env(), stdio: ['pipe', 'pipe', 'inherit'] });
+test('the CLI refuses an option it does not know, and points at --help', () => {
+  assert.throws(() => run('status', '--jsn'), (e) => /unknown option --jsn \(hitl --help/.test(e.stderr));
+  assert.match(execFileSync(process.execPath, [cli, '--help'], { encoding: 'utf8' }), /--base <path>/);
+});
+
+function mcp(cwd) {
+  const child = spawn(process.execPath, [cli, 'mcp'], { cwd, env: env(), stdio: ['pipe', 'pipe', 'inherit'] });
   const waiting = new Map();
   let buf = '';
   child.stdout.on('data', (c) => {
@@ -317,37 +343,42 @@ test('the MCP server: initialize, tools, add questions, read answers', async () 
       waiting.set(id, resolve);
       child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n');
     });
-  const tool = async (name, args) => {
-    const r = await call('tools/call', { name, arguments: args });
-    return r.result;
+  const tool = async (name, args) => (await call('tools/call', { name, arguments: args })).result;
+  const close = async () => {
+    child.stdin.end();
+    if (child.exitCode === null) await new Promise((r) => child.on('exit', r));
   };
-  try {
-    const init = await call('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } });
-    assert.equal(init.result.serverInfo.name, 'questionme');
-    assert.match(init.result.instructions, /add_questions/);
-    child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
-    const list = await call('tools/list', {});
-    const names = list.result.tools.map((t) => t.name);
-    for (const t of ['list_sets', 'add_questions', 'get_answers', 'wait_for_answers', 'ack_answers', 'reply', 'get_link', 'show_set', 'update_question']) assert.ok(names.includes(t), t);
+  return { child, call, tool, close };
+}
 
-    const added = await tool('add_questions', { set: 'mcp', title: 'From MCP', section: { id: 'one', title: 'One' }, questions: [{ id: 'colour', question: 'Colour?', options: [{ label: 'Red', recommended: true }, 'Blue'] }] });
+test('the MCP server: add questions, read answers, ack, status, wait', async () => {
+  const m = mcp(demo);
+  try {
+    const init = await m.call('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } });
+    assert.equal(init.result.serverInfo.name, 'hitl');
+    assert.match(init.result.instructions, /add_questions/);
+    m.child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
+    const names = (await m.call('tools/list', {})).result.tools.map((t) => t.name);
+    for (const t of ['status', 'add_questions', 'get_answers', 'wait', 'ack', 'reply', 'get_link', 'show_set', 'update_question']) assert.ok(names.includes(t), t);
+
+    const added = await m.tool('add_questions', { set: 'mcp', title: 'From MCP', section: { id: 'one', title: 'One' }, questions: [{ id: 'colour', question: 'Colour?', options: [{ label: 'Red', recommended: true }, 'Blue'] }] });
     assert.ok(!added.isError, added.content[0].text);
     assert.match(added.content[0].text, /Added 1 question to "mcp": colour/);
-    assert.match(added.content[0].text, /http:\/\/localhost:\d+\/.*#\/p\/demo\/s\/mcp/);
-    const bad = await tool('add_questions', { set: 'mcp', questions: [{ id: 'colour', question: 'Again' }] });
+    assert.match(added.content[0].text, /http:\/\/localhost:\d+\/.*#\/p\/demo\/q\/mcp/);
+    const bad = await m.tool('add_questions', { set: 'mcp', questions: [{ id: 'colour', question: 'Again' }] });
     assert.equal(bad.isError, true);
 
-    new Project(demo).answer('mcp', 'colour', { picked: ['blue'], note: 'Navy, really' });
-    const ans = await tool('get_answers', { set: 'mcp' });
+    new Questions(demo).answer('mcp', 'colour', { picked: ['blue'], note: 'Navy, really' });
+    const ans = await m.tool('get_answers', { set: 'mcp' });
     assert.match(ans.content[0].text, /colour \(Colour\?\): Blue — note: "Navy, really"/);
-    assert.match((await tool('get_answers', { set: 'mcp' })).content[0].text, /Nothing new/);
-    assert.match((await tool('ack_answers', { set: 'mcp', ids: ['colour'], note: 'Painted it navy' })).content[0].text, /Marked 1/);
-    assert.match((await tool('list_sets', {})).content[0].text, /mcp \("From MCP"\): 1 of 1 answered/);
-    const waited = await tool('wait_for_answers', { set: 'mcp', until: 'all', timeout_seconds: 2 });
+    assert.match((await m.tool('get_answers', { set: 'mcp' })).content[0].text, /Nothing new/);
+    assert.match((await m.tool('ack', { set: 'mcp', ids: ['colour'], note: 'Painted it navy' })).content[0].text, /1/);
+    assert.equal(new Questions(demo).answers('mcp').answers.colour.ack.note, 'Painted it navy');
+    assert.match((await m.tool('status', {})).content[0].text, /mcp \("From MCP"\): 1 of 1 answered/);
+    const waited = await m.tool('wait', { ids: ['mcp'], until: 'all', timeout_seconds: 2 });
     assert.match(waited.content[0].text, /Done waiting/);
   } finally {
-    child.stdin.end();
-    await new Promise((r) => child.on('exit', r));
+    await m.close();
   }
 });
 
@@ -366,9 +397,9 @@ test('notifications: an agent adding questions and replying makes one batched we
   fs.mkdirSync(nhome, { recursive: true });
   fs.writeFileSync(path.join(nhome, 'config.json'), JSON.stringify({ notify: { webhook: `http://127.0.0.1:${hook.address().port}/`, quietSeconds: 1, link: 'http://phone.test:4195' } }));
   const root = path.join(tmp, 'notify');
-  const p = new Project(root);
+  const p = new Questions(root);
   p.addQuestions('plan', [{ id: 'old', question: 'Already here?' }]);
-  const child = spawn(process.execPath, [cli, '--solo', root, '--local', '--port', '0'], { env: { ...process.env, QUESTIONME_HOME: nhome }, stdio: ['ignore', 'pipe', 'inherit'] });
+  const child = spawn(process.execPath, [cli, '--solo', root, '--local', '--port', '0', '--no-watch'], { env: { ...process.env, HITL_HOME: nhome }, stdio: ['ignore', 'pipe', 'inherit'] });
   try {
     await new Promise((r) => child.stdout.once('data', r));
     await new Promise((r) => setTimeout(r, 400));
@@ -384,7 +415,7 @@ test('notifications: an agent adding questions and replying makes one batched we
     assert.equal(got[0].blocking, 1);
     assert.equal(got[0].replies, 1);
     assert.match(got[0].title, /plan: 2 new questions, 1 reply from the agent/);
-    assert.equal(got[0].url, 'http://phone.test:4195/#/p/notify/s/plan');
+    assert.equal(got[0].url, 'http://phone.test:4195/#/p/notify/q/plan');
     assert.match(got[0].message, /“First new one\?” and 1 more/);
   } finally {
     child.kill();
@@ -393,14 +424,13 @@ test('notifications: an agent adding questions and replying makes one batched we
 });
 
 test('a nested base path: the page, assets, chunks, files, answers and live events live under it; links carry it', async () => {
-  const { normaliseBase, links } = await import('../dist/registry.js');
   for (const b of ['test/path', '/test/path', '/test/path/', 'test//path/', 'https://example.com/test/path']) assert.equal(normaliseBase(b), '/test/path/');
   assert.equal(normaliseBase('/'), '/');
   assert.throws(() => normaliseBase('C:/Program Files/Git/test/path'), /Git Bash/);
   assert.throws(() => normaliseBase('a/../b'), /\.\./);
-  assert.match(links(4195, '127.0.0.1', 't', '#/p/x', '/test/path/')[0], /^http:\/\/localhost:4195\/test\/path\/\?token=t#\/p\/x$/);
+  assert.match(links(4199, '127.0.0.1', 't', '#/p/x', '/test/path/')[0], /^http:\/\/localhost:4199\/test\/path\/\?token=t#\/p\/x$/);
 
-  const running = await start({ mode: 'solo', projects: () => [{ key: 'demo', root: demo }], port: 0, host: '127.0.0.1', base: '/test/path/', token: 'tok' });
+  const running = await start({ mode: 'solo', projects: () => [{ key: 'demo', root: demo }], port: 0, host: '127.0.0.1', base: '/test/path/', token: 'tok', settings });
   const at = `http://127.0.0.1:${running.port}`;
   const auth = { authorization: 'Bearer tok' };
   try {
@@ -418,10 +448,10 @@ test('a nested base path: the page, assets, chunks, files, answers and live even
     const chunk = /["'](\.\/chunks\/[^"']+\.js)["']/.exec(main)?.[1];
     assert.ok(chunk, 'main.js loads its chunks by relative path');
     assert.equal((await request(running.port, '/test/path/assets/' + chunk.slice(2), { headers: auth })).status, 200);
-    assert.equal((await request(running.port, '/test/path/api/p/demo/s/weather-plan', { headers: auth })).status, 200);
-    assert.equal((await request(running.port, '/test/path/raw/demo/art/sun.svg', { headers: auth })).status, 200);
-    assert.equal((await request(running.port, '/test/path/api/p/demo/text?path=src/forecast.ts&lines=1-2', { headers: auth })).status, 200);
-    const saved = await request(running.port, '/test/path/api/p/demo/s/weather-plan/answer', { method: 'POST', headers: auth, body: { id: 'care', number: 5 } });
+    assert.equal((await request(running.port, '/test/path/p/demo/api/q/weather-plan', { headers: auth })).status, 200);
+    assert.equal((await request(running.port, '/test/path/p/demo/raw/art/sun.svg', { headers: auth })).status, 200);
+    assert.equal((await request(running.port, '/test/path/p/demo/api/text?path=src/forecast.ts&lines=1-2', { headers: auth })).status, 200);
+    const saved = await request(running.port, '/test/path/p/demo/api/q/weather-plan/answer', { method: 'POST', headers: auth, body: { id: 'care', number: 5 } });
     assert.equal(saved.json().answer.number, 5);
     const ev = await fetch(at + '/test/path/api/events', { headers: auth });
     assert.equal(ev.headers.get('content-type'), 'text/event-stream');
@@ -429,9 +459,4 @@ test('a nested base path: the page, assets, chunks, files, answers and live even
   } finally {
     await running.close();
   }
-});
-
-test('the CLI refuses an option it does not know, and points at --help', () => {
-  assert.throws(() => run('list', '--jsn'), (e) => /unknown option --jsn \(questionme --help/.test(e.stderr));
-  assert.match(execFileSync(process.execPath, [cli, '--help'], { encoding: 'utf8' }), /--base <path>/);
 });

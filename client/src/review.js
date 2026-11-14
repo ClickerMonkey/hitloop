@@ -166,7 +166,7 @@ export function renderReviewPage(el, filter, go) {
     .join('');
   const groups = [...byFile]
     .map(
-      ([path, cs]) => `<section class="rgroup"><h3 class="group-title">${path ? `<a href="${fileHref(path)}">${esc(path)}</a>` : `${icon('chat', 15)} Not about a file`}<span class="faint">${cs.length}</span></h3>${cs
+      ([path, cs]) => `<section class="rgroup"><h3 class="group-title${path ? "" : " plain"}">${path ? `<a href="${fileHref(path)}">${esc(path)}</a>` : `${icon('chat', 15)} Not about a file`}<span class="faint">${cs.length}</span></h3>${cs
         .map(
           (c) => `<div class="rcard">${path ? `<div class="rwhere"><a class="pill" href="${fileHref(path, c.line ? { line: String(c.line) } : {})}">${range(c)}</a>${c.commit ? `<span class="faint">@ ${esc(c.commit)}</span>` : ''}</div>` : ''}${
             c.quote ? `<pre class="quote">${esc(c.quote)}</pre>` : ''

@@ -37,7 +37,7 @@
 .proj-pick:hover {
   border-color: var(--border-strong);
 }
-.proj-pick .proj-name {
+.proj-pick .proj-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1252,4 +1252,260 @@ button.gut {
 }
 .rblock + .rblock > .row:first-child {
   border-top: 1px solid var(--border);
+}
+
+/* a phone: questionme's card arrows sit above the section bar */
+@media (max-width: 759px) {
+  body:has(.nav-tabs:not([hidden])) .card-nav {
+    bottom: calc(68px + var(--safe-bottom));
+  }
+}
+
+/* ── polish: one rhythm (4 · 8 · 12 · 16 · 24 · 32), centred controls, a little colour ── */
+:root {
+  --grad: linear-gradient(135deg, oklch(0.58 0.19 268), oklch(0.6 0.2 305));
+  --grad-soft: linear-gradient(135deg, oklch(0.58 0.19 268 / 0.1), oklch(0.6 0.2 305 / 0.08));
+  --lift: 0 1px 2px var(--shadow-color), 0 8px 24px -8px var(--shadow-color);
+}
+body {
+  background:
+    radial-gradient(1200px 380px at 50% -160px, oklch(0.6 0.19 285 / 0.09), transparent 70%) no-repeat,
+    var(--bg);
+}
+.bar {
+  min-height: 56px;
+  gap: var(--space-3);
+}
+.brand {
+  padding: 4px 8px 4px 4px;
+  gap: var(--space-2);
+}
+.brand .logo {
+  background: var(--grad);
+  box-shadow: 0 2px 8px -2px oklch(0.55 0.2 285 / 0.55);
+}
+.brand b {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: -0.01em;
+}
+
+/* the project picker: mark, name and arrow on one centre line */
+.proj-pick {
+  height: 36px;
+  gap: var(--space-2);
+  padding: 0 var(--space-2) 0 6px;
+  line-height: 1;
+  font-size: var(--text-sm);
+  transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+}
+.proj-pick:hover,
+.proj-pick[aria-expanded='true'] {
+  box-shadow: var(--ring);
+  border-color: var(--accent);
+}
+.proj-pick .proj-label {
+  flex: 1;
+  text-align: left;
+  line-height: 24px;
+}
+.proj-pick #proj-caret {
+  display: inline-grid;
+  place-items: center;
+  color: var(--text-faint);
+}
+.proj-mark {
+  background: linear-gradient(135deg, oklch(0.62 0.15 var(--hue)), oklch(0.54 0.16 calc(var(--hue) + 30)));
+  line-height: 1;
+}
+
+/* the project menu: every row the same height, icons in the same 24 px column as the marks */
+.pop.menu {
+  gap: 2px;
+  padding: 6px;
+  width: 288px;
+}
+.menu-item {
+  height: 40px;
+  padding: 0 10px 0 8px;
+  gap: var(--space-3);
+  font-weight: var(--weight-medium);
+}
+.menu-item .grow {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menu-item.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.menu-ic {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--text-dim);
+}
+.menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+
+/* the sections: the one you're in has a coloured underline */
+@media (min-width: 760px) {
+  .nav-tab {
+    height: 36px;
+  }
+  .nav-tab.on {
+    background: var(--grad-soft);
+  }
+  .nav-tab.on::after {
+    content: '';
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: -11px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--grad);
+  }
+}
+@media (max-width: 759px) {
+  .nav-tab.on .tab-ic {
+    color: var(--accent);
+  }
+  .nav-tab.on .tab-ic::before {
+    content: '';
+  }
+  .nav-tab.on {
+    font-weight: var(--weight-strong);
+  }
+}
+
+/* page heads: the same space under the bar, the same gap to what follows */
+.page-hero {
+  padding-top: var(--space-2);
+}
+.page-hero h1,
+.rv-hero h1,
+.set-hero h1 {
+  letter-spacing: -0.02em;
+}
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.eyebrow::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--grad);
+}
+
+/* rows and cards lift a little under the pointer */
+.set-row,
+.proj-card,
+.tile,
+.dec-row {
+  transition: transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease), border-color var(--fast) var(--ease);
+}
+@media (hover: hover) {
+  .set-row:hover,
+  .proj-card:hover,
+  .tile:hover,
+  .dec-row:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--lift);
+  }
+}
+.tile .i,
+.dec-kind .i {
+  color: var(--accent);
+}
+.tile {
+  gap: 4px;
+  padding: var(--space-4);
+}
+.tile > .i {
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: var(--grad-soft);
+}
+
+/* review items: a coloured edge for the verdict */
+.rv-item {
+  box-shadow: var(--lift);
+  border-left-width: 3px;
+}
+.rv-item.done {
+  border-left-color: var(--ok);
+}
+.rv-item:has(.vbtn.v-changes.on) {
+  border-left-color: var(--warn);
+}
+.rv-item:has(.vbtn.v-no.on) {
+  border-left-color: var(--danger);
+}
+.vbtn.v-ok:hover:not(:disabled):not(.on) {
+  background: var(--ok-soft);
+  color: var(--ok);
+  border-color: color-mix(in oklab, var(--ok) 40%, var(--border));
+}
+.vbtn.v-changes:hover:not(:disabled):not(.on) {
+  background: var(--warn-soft);
+  color: var(--warn);
+  border-color: color-mix(in oklab, var(--warn) 40%, var(--border));
+}
+.vbtn.v-no:hover:not(:disabled):not(.on) {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: color-mix(in oklab, var(--danger) 40%, var(--border));
+}
+.vbtn.on {
+  box-shadow: 0 4px 12px -4px color-mix(in oklab, currentColor 30%, transparent);
+}
+.mini-bar.big > span {
+  background: var(--grad);
+}
+.btn.primary {
+  background: var(--grad);
+  border-color: transparent;
+}
+.btn.primary:hover {
+  filter: brightness(1.06);
+}
+.btn.primary.v-ok {
+  background: var(--ok);
+}
+.rv-finish {
+  background: var(--grad-soft), var(--surface);
+}
+.rv-finish.gate {
+  background: var(--surface);
+}
+
+/* a question set reads in the same column as every other page */
+.set-page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-5) calc(var(--space-6) * 4);
+}
+@media (max-width: 759px) {
+  .set-page {
+    padding: var(--space-4) var(--space-3) calc(var(--space-6) * 4 + var(--safe-bottom));
+  }
+}
+
+.group-title.plain {
+  font-family: var(--font);
 }

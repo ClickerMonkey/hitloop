@@ -226,7 +226,7 @@ function renderSet() {
   const head = document.createElement('header');
   const project = info.projects.find((p) => p.key === view.key);
   head.className = 'set-hero';
-  head.innerHTML = `<div class="hero-top"><div class="hero-text"><span class="eyebrow">${esc(project?.name || view.key)} · ${esc(view.setId)}</span><h1>${esc(set.title)}</h1></div><div class="hero-ring" id="hero-ring"></div></div>`;
+  head.innerHTML = `<div class="hero-top"><div class="hero-text"><span class="eyebrow">${esc(project?.name || view.key)} · Questions${set.from ? ` · from ${esc(set.from)}` : ''}</span><h1>${esc(set.title)}</h1></div><div class="hero-ring" id="hero-ring"></div></div>`;
   if (set.intro) head.append(md(set.intro, '', 'set-intro'));
   head.insertAdjacentHTML('beforeend', '<div class="hero-stats" id="hero-stats"></div>');
   if (set.content.length) {
