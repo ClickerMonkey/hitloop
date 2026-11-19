@@ -3,7 +3,8 @@
 //   #/machine/s/<session>?r=…      one session: its agents and workflows, context per turn, tools
 // Off until it's turned on; then live while the page is open (a sample a second), history from the hub's
 // round-robin files.
-import { $, api, esc, ago, toast } from '../util.js';
+import { $, api, esc, ago, toast, store } from '../util.js';
+import { showChat } from './chat.js';
 import { icon } from '../icons.js';
 import { COLORS, fmt, points, timeChart, columns, barList, meter, heatmap, sparkline, hideTip } from './charts.js';
 
@@ -29,22 +30,29 @@ const view = {
 const rangeSec = () => RANGES[view.range] || 86400;
 const hubApi = (u, o = {}) => api(u, { ...o, hub: true });
 
+/** a conversation: the session's own, or one of its agents' */
+export function chatHref(session, agent = '') {
+  return `#/machine/s/${encodeURIComponent(session)}/${agent ? 'a/' + encodeURIComponent(agent) : 'c'}`;
+}
+
 export function machineHref(range = view.range, session = '') {
   return `#/machine${session ? '/s/' + encodeURIComponent(session) : ''}${range && range !== '1d' ? '?r=' + range : ''}`;
 }
 
 /** draw the page (or a session) at the address */
-export async function showMachine(el, { range, session }) {
-  const again = view.el === el && view.session === (session || '');
+export async function showMachine(el, { range, session, chat, agent }) {
+  const again = view.el === el && view.session === (session || '') && view.chat === (chat || '') && view.agent === (agent || '');
   view.el = el;
   view.range = RANGES[range] ? range : '1d';
   view.session = session || '';
+  view.chat = chat || '';
+  view.agent = agent || '';
   if (!again) {
     view.series = {};
     view.claude = null;
     view.detail = null;
   }
-  document.title = `${session ? 'Session' : 'This computer'} · hitl`;
+  document.title = `${chat ? 'Conversation' : session ? 'Session' : 'This computer'} · hitl`;
   startTimers();
   await load();
 }
@@ -93,6 +101,16 @@ async function load() {
     return;
   }
   if (!view.status.on || !view.status.running) return paintOff();
+  if (view.chat) {
+    await Promise.all([refreshNow(false), loadDetail()]);
+    const s = view.detail;
+    const a = view.agent ? s?.agents?.[view.agent] : null;
+    const title = view.agent ? a?.description || view.agent : 'Main conversation';
+    const sub = `<a href="${machineHref(view.range, view.session)}">${esc(s?.title || view.session.slice(0, 8))}</a>${a ? ' · ' + esc(a.type) + (a.model ? ' · ' + esc(a.model.replace(/^claude-/, '')) : '') : ''}`;
+    view.el.innerHTML = `<div class="page-wrap mach">${head(title, sub)}<div id="m-chat"></div></div>`;
+    $('m-pause').addEventListener('click', (e) => pauseMenu(e.currentTarget));
+    return showChat($('m-chat'), { session: view.session, agent: view.agent });
+  }
   if (view.session) {
     await Promise.all([refreshNow(false), loadDetail()]);
     return paintSession();
@@ -108,7 +126,7 @@ async function refreshNow(redraw = true) {
   } catch {
     return;
   }
-  if (redraw && view.el) {
+  if (redraw && view.el && !view.chat) {
     if (view.session) paintSessionLive();
     else paintNow();
   }
@@ -135,6 +153,7 @@ async function refreshSeries(redraw = true) {
 }
 
 async function refreshClaude(redraw = true) {
+  if (view.chat) return;
   if (view.session) return loadDetail().then(() => redraw && paintSession());
   lastClaude = Date.now();
   try {
@@ -155,7 +174,7 @@ async function loadDetail() {
 
 // ── live samples (one a second while the page is open) ──
 function liveSample(s) {
-  if (!view.now) return;
+  if (!view.now || view.chat) return;
   view.now.sample = s;
   if (view.session) return;
   paintNowTiles();
@@ -210,7 +229,7 @@ function head(title, sub) {
     .map((r) => `<a class="seg-btn${r === view.range ? ' on' : ''}" href="${machineHref(r, view.session)}" aria-current="${r === view.range}">${r}</a>`)
     .join('');
   return `<header class="mach-head">
-    <div class="mach-title">${view.session ? `<a class="link-btn" href="${machineHref(view.range)}">${icon('arrow-left', 16)}This computer</a>` : ''}<h1>${esc(title)}</h1><p class="faint">${sub}</p></div>
+    <div class="mach-title">${view.chat ? `<a class="link-btn" href="${machineHref(view.range, view.session)}">${icon('arrow-left', 16)}Session</a>` : view.session ? `<a class="link-btn" href="${machineHref(view.range)}">${icon('arrow-left', 16)}This computer</a>` : ''}<h1>${esc(title)}</h1><p class="faint">${sub}</p></div>
     <div class="mach-acts">${pill}<button class="btn small" id="m-pause" type="button">${icon(p ? 'refresh' : 'clock', 15)}${p ? 'Resume' : 'Pause'}</button><nav class="seg" aria-label="Time range">${ranges}</nav></div>
   </header>`;
 }
@@ -753,11 +772,12 @@ function paintSession() {
       )}</section>
       <section class="card mach-card wide"><div class="mach-card-head"><h3>Running now</h3></div><div id="c-srun"></div></section>
     </div>
-    <h2 class="mach-h">${icon('cards', 18)}Agents and workflows <small class="faint">${agents.length} agent${agents.length === 1 ? '' : 's'}, ${wfs.length} workflow run${wfs.length === 1 ? '' : 's'} · ${fmt.num(agentTok)} tokens in agents</small></h2>
+    <h2 class="mach-h">${icon('cards', 18)}Agents and workflows <small class="faint">${agents.length} agent${agents.length === 1 ? '' : 's'}, ${wfs.length} workflow run${wfs.length === 1 ? '' : 's'} · ${fmt.num(agentTok)} tokens in agents</small><span class="mach-fold-all"><button class="link-btn" type="button" data-fold-all="close">Collapse all</button> · <button class="link-btn" type="button" data-fold-all="open">Expand all</button></span></h2>
     <section class="card mach-tree">${tree(s, agents, wfs)}</section>
   </div>`;
   $('m-pause').addEventListener('click', (e) => pauseMenu(e.currentTarget));
   view.el.querySelector('.mach-tree').addEventListener('click', onTreeClick);
+  view.el.querySelector('.mach-fold-all').addEventListener('click', onTreeClick);
   paintSessionLive();
   const ctx = s.ctx || [];
   if (ctx.length) draw('c-sctx', (el) => timeChart(el, [{ name: 'Context', pts: ctx, area: true, color: 'var(--s2)' }], { from: ctx[0][0], to: Math.max(ctx.at(-1)[0], ctx[0][0] + 60_000), y: fmt.num }));
@@ -791,18 +811,29 @@ function paintSessionLive() {
 function tree(s, agents, wfs) {
   const row = (a, depth = 0) => {
     const running = a.finished === false || (a.finished === null && Date.now() - a.last < 120_000);
-    return `<div class="mach-agent" style="--d:${depth}"><span class="mach-status ${running ? 'busy' : 'done'}" title="${running ? 'Running' : 'Finished'}"></span><div class="mach-agent-main"><b>${esc(a.description || a.id)}</b><small class="faint">${esc(a.type)}${a.phase ? ' · ' + esc(a.phase) : ''}${a.model ? ' · ' + esc(a.model.replace(/^claude-/, '')) : ''}${a.depth > 1 ? ` · depth ${a.depth}` : ''}</small></div><span class="mach-agent-stat">${fmt.num(tokAll(a.tok))}<small>tokens</small></span><span class="mach-agent-stat">${fmt.num(a.tools)}<small>tools${a.toolErr ? `, <span class="bad">${a.toolErr} failed</span>` : ''}</small></span><span class="mach-agent-stat">${a.first ? fmt.dur(a.last - a.first) : '–'}</span><span class="mach-agent-stat">${fmt.usd(a.cost)}</span></div>`;
+    return `<div class="mach-agent" style="--d:${depth}"><span class="mach-status ${running ? 'busy' : 'done'}" title="${running ? 'Running' : 'Finished'}"></span><div class="mach-agent-main"><a class="mach-agent-link" href="${chatHref(s.id, a.id)}" title="Read this agent's conversation"><b>${esc(a.description || a.id)}</b></a><small class="faint">${esc(a.type)}${a.phase ? ' · ' + esc(a.phase) : ''}${a.model ? ' · ' + esc(a.model.replace(/^claude-/, '')) : ''}${a.depth > 1 ? ` · depth ${a.depth}` : ''}</small></div><span class="mach-agent-stat">${fmt.num(tokAll(a.tok))}<small>tokens</small></span><span class="mach-agent-stat">${fmt.num(a.tools)}<small>tools${a.toolErr ? `, <span class="bad">${a.toolErr} failed</span>` : ''}</small></span><span class="mach-agent-stat">${a.first ? fmt.dur(a.last - a.first) : '–'}</span><span class="mach-agent-stat">${fmt.usd(a.cost)}</span></div>`;
   };
   // the main conversation: the session less its agents, in the same columns
   const less = (f) => f(s) - agents.reduce((n, a) => n + f(a), 0);
   const main = { tok: less((x) => tokAll(x.tok)), tools: less((x) => x.tools), err: less((x) => x.toolErr), cost: less((x) => x.cost), turns: less((x) => x.turns) };
-  let html = `<div class="mach-agent is-main"><span class="mach-status ${(view.now?.live || []).some((l) => l.sessionId === s.id) ? 'busy' : 'done'}"></span><div class="mach-agent-main"><b>Main conversation</b><small class="faint">${esc(s.model ? s.model.replace(/^claude-/, '') : '')} · ${fmt.num(main.turns)} replies</small></div><span class="mach-agent-stat">${fmt.num(main.tok)}<small>tokens</small></span><span class="mach-agent-stat">${fmt.num(main.tools)}<small>tools${main.err > 0 ? `, <span class="bad">${main.err} failed</span>` : ''}</small></span><span class="mach-agent-stat">${fmt.dur(s.last - s.first)}</span><span class="mach-agent-stat">${fmt.usd(main.cost)}</span></div>`;
+  let html = `<div class="mach-agent is-main"><span class="mach-status ${(view.now?.live || []).some((l) => l.sessionId === s.id) ? 'busy' : 'done'}"></span><div class="mach-agent-main"><a class="mach-agent-link" href="${chatHref(s.id)}" title="Read the main conversation"><b>Main conversation</b></a><small class="faint">${esc(s.model ? s.model.replace(/^claude-/, '') : '')} · ${fmt.num(main.turns)} replies</small></div><span class="mach-agent-stat">${fmt.num(main.tok)}<small>tokens</small></span><span class="mach-agent-stat">${fmt.num(main.tools)}<small>tools${main.err > 0 ? `, <span class="bad">${main.err} failed</span>` : ''}</small></span><span class="mach-agent-stat">${fmt.dur(s.last - s.first)}</span><span class="mach-agent-stat">${fmt.usd(main.cost)}</span></div>`;
+  // workflows (and the subagents outside any), most recently active first; each one folds, and stays folded
+  const folded = foldedMap();
+  const last = (list, ...more) => Math.max(0, ...list.map((a) => a.last || 0), ...more);
+  const blocks = [];
+  const fold = (key, label, inner, dflt = false) => {
+    const shut = key in folded ? folded[key] : dflt;
+    return `<div class="mach-wf${shut ? ' is-folded' : ''}" data-wf="${esc(key)}">
+      <div class="mach-wf-head"><button class="mach-fold" type="button" data-fold="${esc(key)}" aria-expanded="${!shut}" title="${shut ? 'Expand' : 'Collapse'}">${icon('chevron-down', 16)}</button>${label}</div>
+      <div class="mach-wf-inner"${shut ? ' hidden' : ''}>${inner}</div>
+    </div>`;
+  };
   for (const w of wfs) {
     const mine = agents.filter((a) => a.workflow === w.runId);
     const phases = [...new Set([...w.phases.map((p) => p.title), ...mine.map((a) => a.phase || '')])];
-    html += `<div class="mach-wf" data-wf="${esc(w.runId)}">
-      <div class="mach-wf-head"><span class="badge ${w.status === 'completed' ? 'ok' : w.status === 'running' ? 'accent' : w.status ? 'danger' : ''}">${esc(w.status || '?')}</span><b>${esc(w.name)}</b><span class="faint small">${w.agentCount} agents · ${fmt.dur(w.durationMs)} · ${fmt.num(mine.reduce((n, x) => n + tokAll(x.tok), 0))} tokens with cache reads <span title="The workflow record's own total, which leaves out tokens read from the cache">(${fmt.num(w.totalTokens)} by Claude Code's count)</span> · ${fmt.num(w.totalToolCalls)} tool calls · ${fmt.usd(mine.reduce((n, x) => n + x.cost, 0))}</span><button class="btn small" type="button" data-open="${esc(w.runId)}">${icon('chevron-down', 14)}Script and result</button></div>
-      ${w.description ? `<p class="mach-wf-desc">${esc(w.description)}</p>` : ''}
+    const at = last(mine, w.startTime + (w.durationMs || 0));
+    const label = `<span class="badge ${w.status === 'completed' ? 'ok' : w.status === 'running' ? 'accent' : w.status ? 'danger' : ''}">${esc(w.status || '?')}</span><b>${esc(w.name)}</b><span class="faint small">${w.agentCount} agents · ${fmt.dur(w.durationMs)} · ${fmt.num(mine.reduce((n, x) => n + tokAll(x.tok), 0))} tokens with cache reads <span title="The workflow record's own total, which leaves out tokens read from the cache">(${fmt.num(w.totalTokens)} by Claude Code's count)</span> · ${fmt.num(w.totalToolCalls)} tool calls · ${fmt.usd(mine.reduce((n, x) => n + x.cost, 0))}</span><span class="faint small mach-wf-when">${esc(ago(at))}</span><button class="btn small" type="button" data-open="${esc(w.runId)}">${icon('chevron-down', 14)}Script and result</button>`;
+    const inner = `${w.description ? `<p class="mach-wf-desc">${esc(w.description)}</p>` : ''}
       ${w.summary && w.summary !== w.description ? `<p class="mach-wf-desc faint">${esc(w.summary)}</p>` : ''}
       <div class="mach-wf-body" hidden></div>
       ${phases
@@ -811,20 +842,71 @@ function tree(s, agents, wfs) {
           if (!list.length && !ph) return '';
           return `<div class="mach-phase"><span class="mach-phase-name">${esc(ph || 'Other')}</span>${list.length ? list.sort((a, b) => a.first - b.first).map((a) => row(a, 1)).join('') : '<p class="faint small">No agents read for this phase</p>'}</div>`;
         })
-        .join('')}
-    </div>`;
+        .join('')}`;
+    blocks.push({ at, html: fold(w.runId, label, inner, w.status === 'completed') });
   }
   // agents of a workflow run whose record is gone (or not written yet)
   const runs = new Set(wfs.map((w) => w.runId));
   const orphans = [...new Set(agents.filter((a) => a.workflow && !runs.has(a.workflow)).map((a) => a.workflow))];
-  for (const id of orphans) html += `<div class="mach-wf"><div class="mach-wf-head">${agents.some((x) => x.workflow === id && (x.finished === false || Date.now() - x.last < 120_000)) ? '<span class="badge accent">running</span>' : '<span class="badge">no record</span>'}<b>Workflow ${esc(id)}</b><span class="faint small">Claude Code writes a run's record when it ends</span></div>${agents.filter((a) => a.workflow === id).sort((a, b) => a.first - b.first).map((a) => row(a, 1)).join('')}</div>`;
+  for (const id of orphans) {
+    const mine = agents.filter((x) => x.workflow === id);
+    const at = last(mine);
+    const label = `${mine.some((x) => x.finished === false || Date.now() - x.last < 120_000) ? '<span class="badge accent">running</span>' : '<span class="badge">no record</span>'}<b>Workflow ${esc(id)}</b><span class="faint small">Claude Code writes a run's record when it ends</span><span class="faint small mach-wf-when">${esc(ago(at))}</span>`;
+    blocks.push({ at, html: fold(id, label, mine.sort((a, b) => a.first - b.first).map((a) => row(a, 1)).join('')) });
+  }
   const loose = agents.filter((a) => !a.workflow).sort((a, b) => a.first - b.first);
-  if (loose.length) html += `<div class="mach-phase"><span class="mach-phase-name">Subagents</span>${loose.map((a) => row(a, Math.max(1, a.depth))).join('')}</div>`;
+  if (loose.length) {
+    const at = last(loose);
+    blocks.push({ at, html: fold('subagents:' + s.id, `<b>Subagents</b><span class="faint small">${loose.length} outside any workflow</span><span class="faint small mach-wf-when">${esc(ago(at))}</span>`, loose.map((a) => row(a, Math.max(1, a.depth))).join('')) });
+  }
+  blocks.sort((x, y) => y.at - x.at);
+  html += blocks.map((x) => x.html).join('');
   if (!agents.length && !wfs.length) html += '<p class="viz-none">This session ran no subagents or workflows.</p>';
   return html;
 }
 
+/** which workflows the person folded (true) or opened (false); the rest follow the default: finished ones fold */
+function foldedMap() {
+  try {
+    const o = JSON.parse(store('machine-fold') || '{}');
+    return o && typeof o === 'object' ? o : {};
+  } catch {
+    return {};
+  }
+}
+function setFolded(key, shut) {
+  const o = foldedMap();
+  delete o[key];
+  o[key] = shut;
+  store('machine-fold', JSON.stringify(Object.fromEntries(Object.entries(o).slice(-1000))));
+}
+function applyFold(wf, shut) {
+  wf.classList.toggle('is-folded', shut);
+  wf.querySelector(':scope > .mach-wf-inner').hidden = shut;
+  const b = wf.querySelector(':scope > .mach-wf-head > .mach-fold');
+  b.setAttribute('aria-expanded', String(!shut));
+  b.title = shut ? 'Expand' : 'Collapse';
+}
+
 async function onTreeClick(e) {
+  const f = e.target.closest('[data-fold]');
+  if (f) {
+    const wf = f.closest('.mach-wf');
+    const shut = !wf.classList.contains('is-folded');
+    applyFold(wf, shut);
+    return setFolded(f.dataset.fold, shut);
+  }
+  const all = e.target.closest('[data-fold-all]');
+  if (all) {
+    const shut = all.dataset.foldAll === 'close';
+    for (const wf of view.el.querySelectorAll('.mach-tree .mach-wf')) {
+      applyFold(wf, shut);
+      setFolded(wf.dataset.wf, shut);
+    }
+    return;
+  }
+  const head = e.target.closest('.mach-wf-head');
+  if (head && !e.target.closest('a, button, summary')) return void head.querySelector('.mach-fold')?.click();
   const b = e.target.closest('[data-open]');
   if (!b) return;
   const box = b.closest('.mach-wf').querySelector('.mach-wf-body');

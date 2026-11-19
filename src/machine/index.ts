@@ -272,6 +272,19 @@ export class Machine {
       const live = this.claude?.live.find((l) => l.sessionId === s.id);
       return json(res, 200, { ...s, live: live ? { ...live, proc: this.sys?.proc(live.pid) ?? null } : null, running: (this.claude?.running() ?? []).filter((r) => r.session === s.id) });
     }
+    if (sub === '/transcript' || sub === '/transcript-image') {
+      const q = url.searchParams;
+      const session = q.get('session') ?? '';
+      const agent = q.get('agent') || undefined;
+      if (sub === '/transcript') {
+        const t = this.claude?.transcript(session, agent, Math.max(0, Number(q.get('offset')) || 0), Math.min(500, Math.max(1, Number(q.get('limit')) || 200)));
+        if (!t) return json(res, 404, { error: 'No transcript for that' });
+        return json(res, 200, t);
+      }
+      const im = this.claude?.transcriptImage(session, agent, Number(q.get('line')) || 0, Number(q.get('n')) || 0);
+      if (!im) return json(res, 404, { error: 'No such picture' });
+      return json(res, 200, im);
+    }
     const wm = /^\/workflow\/([^/]+)\/([^/]+)$/.exec(sub);
     if (wm) {
       const w = this.claude?.workflow(decodeURIComponent(wm[1] ?? ''), decodeURIComponent(wm[2] ?? ''));

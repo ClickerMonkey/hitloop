@@ -7,7 +7,7 @@
 //   #/p/<key>/decisions         what you decided
 //   #/p/<key>/q/<set>[/<id>]    a question set
 //   #/p/<key>/r/<id>[/<item>]   a review, a showing or an approval
-//   #/machine[/s/<session>]     this computer and its Claude Code sessions (when it's turned on)
+//   #/machine[/s/<session>[/c | /a/<agent>]]  this computer, a session, and a conversation in it (when it's turned on)
 import { $, api, esc, emit, on, store, toast, debounce } from './util.js';
 import { enterProject, loadComments, loadGit, projectOf, setSetting, state, where } from './state.js';
 import { icon } from './icons.js';
@@ -30,7 +30,7 @@ function parse() {
   const h = location.hash.slice(1) || '/';
   const [p, qs = ''] = h.split('?');
   const parts = p.split('/').filter(Boolean).map((x) => decodeURIComponent(x));
-  if (parts[0] === 'machine') return { page: 'machine', key: '', range: new URLSearchParams(qs).get('r') || '', session: parts[1] === 's' ? parts[2] || '' : '', id: parts[2] || '' };
+  if (parts[0] === 'machine') return { page: 'machine', key: '', range: new URLSearchParams(qs).get('r') || '', session: parts[1] === 's' ? parts[2] || '' : '', chat: parts[1] === 's' && (parts[3] === 'c' || parts[3] === 'a') ? parts[3] : '', agent: parts[3] === 'a' ? parts[4] || '' : '', id: parts[2] || '' };
   if (parts[0] !== 'p' || !parts[1]) return { page: 'inbox', key: '' };
   const key = parts[1];
   const sec = parts[2] || '';
@@ -142,8 +142,8 @@ async function draw() {
         await showMachine(main, r);
         break;
     }
-    if (fresh && lastPage !== JSON.stringify([r.page, r.key, r.id, r.session])) scrollTo(0, 0);
-    lastPage = JSON.stringify([r.page, r.key, r.id, r.session]);
+    if (fresh && lastPage !== JSON.stringify([r.page, r.key, r.id, r.session, r.chat, r.agent])) scrollTo(0, 0);
+    lastPage = JSON.stringify([r.page, r.key, r.id, r.session, r.chat, r.agent]);
   } catch (e) {
     leaveFiles();
     $('main').innerHTML = `<div class="page-wrap"><div class="empty"><h2>Couldn't open that</h2><p>${esc(e.message)}</p><p><a class="btn" href="#/">Back to the inbox</a></p></div></div>`;

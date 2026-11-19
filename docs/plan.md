@@ -54,6 +54,11 @@ His answers (question set `machine-dashboard`):
 
 Built in `src/machine/` (rrd.ts, system.ts, claude.ts, prices.ts, index.ts) and `client/src/machine/`.
 
+Added 2026-11-19 (Phil): workflows fold and stay folded (localStorage `hitl:machine-fold`; finished ones fold by default), the
+newest first; click any agent or the main conversation to read it (messages, thinking, tool calls with results and
+durations, every picture it read) at `#/machine/s/<session>/c` and `/a/<agent>`, backed by `api/machine/transcript` and
+`api/machine/transcript-image`.
+
 ## Shape
 
 ```

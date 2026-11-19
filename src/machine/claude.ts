@@ -823,6 +823,57 @@ export class ClaudeReader {
     }
   }
 
+  /** the transcript file of a session's main thread, or of one of its agents */
+  private transcriptFile(session: string, agent?: string): string | undefined {
+    for (const f of Object.keys(this.files)) {
+      if (!f.endsWith('.jsonl')) continue;
+      const w = this.whose(f);
+      if (w.session === session && (w.agent ?? '') === (agent ?? '')) return f;
+    }
+    return undefined;
+  }
+
+  private tcache: { file: string; size: number; mtime: number; items: TranscriptItem[] } | undefined;
+
+  /** a conversation, flattened: what was said, thought, called and returned (pictures are fetched on their own) */
+  transcript(session: string, agent: string | undefined, offset: number, limit: number): { total: number; items: TranscriptItem[]; offset: number } | undefined {
+    const file = this.transcriptFile(session, agent);
+    if (!file) return undefined;
+    const st = fs.statSync(file);
+    if (!this.tcache || this.tcache.file !== file || this.tcache.size !== st.size || this.tcache.mtime !== st.mtimeMs) {
+      this.tcache = { file, size: st.size, mtime: st.mtimeMs, items: flatten(fs.readFileSync(file, 'utf8')) };
+    }
+    const items = this.tcache.items;
+    const from = Math.max(0, Math.min(offset, items.length));
+    return { total: items.length, items: items.slice(from, from + limit), offset: from };
+  }
+
+  /** one picture from a transcript line */
+  transcriptImage(session: string, agent: string | undefined, line: number, n: number): { mediaType: string; data: string } | undefined {
+    const file = this.transcriptFile(session, agent);
+    if (!file) return undefined;
+    const l = fs.readFileSync(file, 'utf8').split('\n')[line];
+    if (!l) return undefined;
+    let o: Record<string, unknown>;
+    try {
+      o = JSON.parse(l) as Record<string, unknown>;
+    } catch {
+      return undefined;
+    }
+    const found: { mediaType: string; data: string }[] = [];
+    const scan = (c: unknown): void => {
+      if (!Array.isArray(c)) return;
+      for (const b of c as Record<string, unknown>[]) {
+        if (b?.['type'] === 'image') {
+          const src = (b['source'] ?? {}) as Record<string, unknown>;
+          found.push({ mediaType: str(src['media_type']) || 'image/png', data: str(src['data']) });
+        } else if (b?.['type'] === 'tool_result') scan(b['content']);
+      }
+    };
+    scan(((o['message'] ?? {}) as Record<string, unknown>)['content']);
+    return found[n];
+  }
+
   counts(): { sessions: number; files: number } {
     return { sessions: this.sessions.size, files: Object.keys(this.files).length };
   }
@@ -859,3 +910,82 @@ const clip = (s: string) => {
   const one = s.replace(/\s+/g, ' ').trim();
   return one.length > 140 ? one.slice(0, 139) + '…' : one;
 };
+
+export interface TranscriptItem {
+  /** the line in the file, for fetching a picture */
+  line: number;
+  t: number;
+  role: 'user' | 'assistant';
+  kind: 'text' | 'thinking' | 'tool_use' | 'tool_result' | 'image';
+  text?: string;
+  truncated?: number;
+  name?: string;
+  id?: string;
+  input?: unknown;
+  error?: boolean;
+  /** which picture on the line */
+  n?: number;
+  mediaType?: string;
+  bytes?: number;
+  model?: string;
+  /** a side-channel line: a reminder, a compaction summary */
+  meta?: boolean;
+}
+
+const TEXT_CAP = 40_000;
+const capText = (s: string): { text: string; truncated?: number } => (s.length > TEXT_CAP ? { text: s.slice(0, TEXT_CAP), truncated: s.length - TEXT_CAP } : { text: s });
+
+/** a transcript file's lines as a flat list of things said and done */
+function flatten(raw: string): TranscriptItem[] {
+  const out: TranscriptItem[] = [];
+  const lines = raw.split('\n');
+  for (let line = 0; line < lines.length; line++) {
+    const l = lines[line];
+    if (!l || !(l.includes('"type":"user"') || l.includes('"type":"assistant"'))) continue;
+    let o: Record<string, unknown>;
+    try {
+      o = JSON.parse(l) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    const role = o['type'] === 'assistant' ? 'assistant' : o['type'] === 'user' ? 'user' : undefined;
+    if (!role) continue;
+    const t = Date.parse(str(o['timestamp'])) || 0;
+    const msg = (o['message'] ?? {}) as Record<string, unknown>;
+    const model = str(msg['model']) || undefined;
+    const meta = o['isMeta'] === true || o['isCompactSummary'] === true || undefined;
+    let img = 0;
+    const content = msg['content'];
+    const blocks: Record<string, unknown>[] = typeof content === 'string' ? [{ type: 'text', text: content }] : Array.isArray(content) ? (content as Record<string, unknown>[]) : [];
+    const push = (i: Omit<TranscriptItem, 'line' | 't' | 'role'>) => out.push({ line, t, role, ...(meta ? { meta } : {}), ...(model && role === 'assistant' ? { model } : {}), ...i });
+    const image = (b: Record<string, unknown>) => {
+      const src = (b['source'] ?? {}) as Record<string, unknown>;
+      push({ kind: 'image', n: img++, mediaType: str(src['media_type']) || 'image/png', bytes: Math.round((str(src['data']).length * 3) / 4) });
+    };
+    for (const b of blocks) {
+      switch (b['type']) {
+        case 'text':
+          if (str(b['text']).trim()) push({ kind: 'text', ...capText(str(b['text'])) });
+          break;
+        case 'thinking':
+          if (str(b['thinking']).trim()) push({ kind: 'thinking', ...capText(str(b['thinking'])) });
+          break;
+        case 'tool_use':
+          push({ kind: 'tool_use', name: str(b['name']), id: str(b['id']), input: b['input'] });
+          break;
+        case 'image':
+          image(b);
+          break;
+        case 'tool_result': {
+          const c = b['content'];
+          const parts = typeof c === 'string' ? [{ type: 'text', text: c }] : Array.isArray(c) ? (c as Record<string, unknown>[]) : [];
+          const text = parts.filter((x) => x['type'] === 'text').map((x) => str(x['text'])).join('\n');
+          push({ kind: 'tool_result', id: str(b['tool_use_id']), error: b['is_error'] === true || undefined, ...capText(text) });
+          for (const x of parts) if (x['type'] === 'image') image(x);
+          break;
+        }
+      }
+    }
+  }
+  return out;
+}

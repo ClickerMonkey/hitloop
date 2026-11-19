@@ -196,7 +196,32 @@ you resume (`npx hitloop machine pause [1h|restart|resume]`, `resume`, `off`).
 | ![Claude Code: tokens, cost, the sessions running now](docs/screens/desktop-machine-claude.jpg) | ![Tools: calls over time, the ones running now, every tool's failures and durations](docs/screens/desktop-machine-tools.jpg) |
 | --- | --- |
 | ![Tokens over time: read and written, estimated cost, cache hit rate, context per reply, replies](docs/screens/desktop-machine-tokens.jpg) | ![When you work: replies per hour of the week, by model and by project](docs/screens/desktop-machine-heat.jpg) |
-| ![A session's workflow run: its phases and every agent's tokens, tool calls, time and cost](docs/screens/desktop-machine-session.jpg) | ![On a phone](docs/screens/phone-machine.jpg) |
+| ![A session's workflows: finished ones folded, the newest first, each agent's tokens, tool calls, time and cost](docs/screens/desktop-machine-session.jpg) | ![A workflow opened: its phases and the agents in each](docs/screens/desktop-machine-session-open.jpg) |
+| ![On a phone](docs/screens/phone-machine.jpg) | |
+
+### Workflows, agents and conversations
+
+Claude Code hides most of what its subagents and workflows do. Open a session on the dashboard and every one of them is
+there.
+
+- **Fold a workflow** with its chevron or by clicking its header; "Collapse all" and "Expand all" do the lot. Finished
+  workflows start folded, running ones open. What you fold or open is remembered in this browser (localStorage).
+- **The newest first**: workflows and loose subagents are ordered by when they last did something, each with how long
+  ago that was.
+- **Click into any conversation**: "Main conversation" or any agent's name opens what was said. Messages (as
+  markdown), the agent's thinking, every tool call with its input, its result and how long it took (failures in red),
+  and **every picture it read**, loaded as you scroll to it and opened full size on a click. Tick or untick Thinking,
+  Tool calls, Tool results and System notes (remembered too). Long conversations load 250 entries at a time.
+
+| ![A conversation: the prompt, thinking, replies and a tool call opened to its input and result](docs/screens/desktop-machine-chat.jpg) | ![A picture the agent read, shown under its Read call](docs/screens/desktop-machine-chat-image.jpg) |
+| --- | --- |
+| ![A failed tool call, in red, with its error](docs/screens/desktop-machine-chat-error.jpg) | ![One of a workflow's agents](docs/screens/desktop-machine-agent.jpg) |
+
+| ![A conversation on a phone](docs/screens/phone-machine-chat.jpg) |
+| --- |
+
+These pictures come from a made-up Claude home (`node scripts/demo-claude.mjs`), so nothing real is in them; the
+dashboard pictures above have the host name, session titles and project names swapped for made-up ones.
 
 - **The computer**: CPU (all cores and each one), memory, GPU use, memory, heat and power (with `nvidia-smi`), network
   per adapter, disk activity, free space per drive, the busiest processes, and every `claude` and `node` process
@@ -205,7 +230,8 @@ you resume (`npx hitloop machine pause [1h|restart|resume]`, `resume`, `off`).
   waiting, context size, tokens, CPU and memory), tokens over time (cache reads and writes, new input, output,
   thinking) by model and by project, an estimated cost at API list prices, cache hit rate, context per reply, when you
   work (hour × weekday), every tool's calls, failures and how long they take, the tool calls running now, and each
-  session's subagents and workflow runs (phases, agents, tokens, tool calls, the script and its result).
+  session's subagents and workflow runs (phases, agents, tokens, tool calls, the script and its result) and their
+  full conversations.
 - **Kept** in `~/.config/hitl/machine/` as round-robin files that never grow: 5-second detail for an hour, minutes for
   two days, 10 minutes for a month, hours for two years (about 100–200 KB per graph). The first time, it reads the
   last 30 days of transcripts in the background; after that only what's added.
@@ -232,7 +258,10 @@ npm test                                    # builds, then runs the tests
 node scripts/demo.mjs .demo/trailhead       # a demo project with everything in it
 HITL_HOME=.demo/home node dist/cli.js --solo .demo/trailhead --local
 node scripts/shots.mjs http://localhost:4199/ .demo/shots   # phone and desktop screenshots of every page
-npm run screens:machine -- http://localhost:4199/ <token> [session]   # the README's machine dashboard pictures
+npm run screens:machine -- http://localhost:4199/ <token>   # the README's machine dashboard pictures (names swapped for made-up ones)
+node scripts/demo-claude.mjs .demo/claude   # a made-up Claude home: a session, workflows, a conversation with a picture
+# then a hub on it (HITL_HOME=.demo/home CLAUDE_CONFIG_DIR=.demo/claude, machine on) and:
+SHOTS=session,chat,agent npm run screens:machine -- http://localhost:4320/ '' 5d1c0a52-7be4-4d52-9a0b-3a6f8f0c2b11
 ```
 
 - **The server** is TypeScript in `src/`, no runtime dependencies, Node 20 or newer.
