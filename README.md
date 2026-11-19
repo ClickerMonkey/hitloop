@@ -195,6 +195,7 @@ you resume (`npx hitloop machine pause [1h|restart|resume]`, `resume`, `off`).
 
 | ![Claude Code: tokens, cost, the sessions running now](docs/screens/desktop-machine-claude.jpg) | ![Tools: calls over time, the ones running now, every tool's failures and durations](docs/screens/desktop-machine-tools.jpg) |
 | --- | --- |
+| ![Tokens over time: read and written, estimated cost, cache hit rate, context per reply, replies](docs/screens/desktop-machine-tokens.jpg) | ![When you work: replies per hour of the week, by model and by project](docs/screens/desktop-machine-heat.jpg) |
 | ![A session's workflow run: its phases and every agent's tokens, tool calls, time and cost](docs/screens/desktop-machine-session.jpg) | ![On a phone](docs/screens/phone-machine.jpg) |
 
 - **The computer**: CPU (all cores and each one), memory, GPU use, memory, heat and power (with `nvidia-smi`), network

@@ -187,7 +187,8 @@ export function timeChart(el, series, opts = {}) {
         marks += `<path class="viz-area${opts.stacked ? ' solid' : ''}" style="fill:${s.color}" d="${line}${base}Z"/>`;
       }
       if (r.length === 1) marks += `<circle cx="${x(r[0][0]).toFixed(1)}" cy="${y(r[0][1]).toFixed(1)}" r="2.5" style="fill:${s.color}"/>`;
-      else marks += `<path class="viz-line" style="stroke:${s.color}" d="${line}"/>`;
+      // a stack is its fills: an outline on each would paint over the band below it
+      else if (!opts.stacked) marks += `<path class="viz-line" style="stroke:${s.color}" d="${line}"/>`;
     }
   });
   const legend =

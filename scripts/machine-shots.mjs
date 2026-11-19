@@ -1,5 +1,5 @@
 // The machine dashboard's pictures for the README (docs/screens/*-machine*.jpg), from a running hub with the
-// dashboard on. The "Latest tool calls" list is left out (it shows the commands you ran).
+// dashboard on. The tool call lists (latest and running) are left out: commands can carry paths and secrets.
 //   npm run screens:machine -- http://localhost:4199/ <token> [session-with-a-workflow]
 import fs from 'node:fs';
 import path from 'node:path';
@@ -18,6 +18,8 @@ const to = (sel, above = 120) => (p) => p.evaluate(([s, a]) => scrollTo(0, docum
 const shots = [
   ['desktop', 'machine', '#/machine?r=1h'],
   ['desktop', 'machine-claude', '#/machine?r=30d', to('#m-claude')],
+  ['desktop', 'machine-tokens', '#/machine?r=30d', to('#c-tok-in', 150)],
+  ['desktop', 'machine-heat', '#/machine?r=30d', to('#c-models', 150)],
   ['desktop', 'machine-tools', '#/machine?r=30d', to('#m-tools')],
   ...(session ? [['desktop', 'machine-session', `#/machine/s/${encodeURIComponent(session)}?r=30d`, to('.mach-tree', 160)]] : []),
   ['phone', 'machine', '#/machine?r=1h'],
@@ -26,8 +28,14 @@ for (const [size, name, hash, then] of shots) {
   const page = await ctx[size].newPage();
   await page.goto(base + hash, { waitUntil: 'load' });
   await page.waitForTimeout(3500);
-  // the latest tool calls list the commands you ran: not in the pictures
-  await page.evaluate(() => document.getElementById('c-recent')?.closest('.mach-card')?.remove());
+  // the tool call lists show the commands themselves: not in the pictures
+  await page.evaluate(() => ['c-recent', 'c-running', 'c-srun'].forEach((id) => document.getElementById(id)?.closest('.mach-card')?.remove()));
+  // the tool calls graph takes the room the running list left
+  await page.evaluate(() => {
+    document.getElementById('c-tcalls')?.closest('.mach-card')?.classList.add('wide');
+    dispatchEvent(new Event('resize'));
+  });
+  await page.waitForTimeout(400);
   if (then) await then(page);
   await page.waitForTimeout(600);
   const file = path.join(out, `${size}-${name}.jpg`);
