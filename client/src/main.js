@@ -7,6 +7,7 @@
 //   #/p/<key>/decisions         what you decided
 //   #/p/<key>/q/<set>[/<id>]    a question set
 //   #/p/<key>/r/<id>[/<item>]   a review, a showing or an approval
+//   #/machine[/s/<session>]     this computer and its Claude Code sessions (when it's turned on)
 import { $, api, esc, emit, on, store, toast, debounce } from './util.js';
 import { enterProject, loadComments, loadGit, projectOf, setSetting, state, where } from './state.js';
 import { icon } from './icons.js';
@@ -15,6 +16,7 @@ import { renderReviewPage } from './review.js';
 import { renderInbox, renderDecisions } from './inbox.js';
 import { showSet, leaveSet, setChanged } from './q/page.js';
 import { showReview, leaveReview, reviewChanged } from './r/page.js';
+import { showMachine, leaveMachine, machineEvent } from './machine/page.js';
 import './grow.js';
 
 function applyTheme() {
@@ -28,6 +30,7 @@ function parse() {
   const h = location.hash.slice(1) || '/';
   const [p, qs = ''] = h.split('?');
   const parts = p.split('/').filter(Boolean).map((x) => decodeURIComponent(x));
+  if (parts[0] === 'machine') return { page: 'machine', key: '', range: new URLSearchParams(qs).get('r') || '', session: parts[1] === 's' ? parts[2] || '' : '', id: parts[2] || '' };
   if (parts[0] !== 'p' || !parts[1]) return { page: 'inbox', key: '' };
   const key = parts[1];
   const sec = parts[2] || '';
@@ -106,6 +109,7 @@ async function draw() {
     if (r.page !== 'files' && r.page !== 'changes') leaveFiles();
     if (r.page !== 'questions') leaveSet();
     if (r.page !== 'review') leaveReview();
+    if (r.page !== 'machine') leaveMachine();
     current = r;
     document.body.dataset.view = r.page;
     paintChrome();
@@ -134,9 +138,12 @@ async function draw() {
       case 'review':
         await showReview(main, r.key, r.id, r.focus);
         break;
+      case 'machine':
+        await showMachine(main, r);
+        break;
     }
-    if (fresh && lastPage !== JSON.stringify([r.page, r.key, r.id])) scrollTo(0, 0);
-    lastPage = JSON.stringify([r.page, r.key, r.id]);
+    if (fresh && lastPage !== JSON.stringify([r.page, r.key, r.id, r.session])) scrollTo(0, 0);
+    lastPage = JSON.stringify([r.page, r.key, r.id, r.session]);
   } catch (e) {
     leaveFiles();
     $('main').innerHTML = `<div class="page-wrap"><div class="empty"><h2>Couldn't open that</h2><p>${esc(e.message)}</p><p><a class="btn" href="#/">Back to the inbox</a></p></div></div>`;
@@ -168,6 +175,7 @@ function paintChrome() {
   const filesView = current.page === 'files' || current.page === 'changes';
   $('search-form').hidden = !filesView;
   $('qo-btn').hidden = !filesView;
+  $('machine-btn').classList.toggle('on', current.page === 'machine');
   paintCounts();
   if (p) paintBar();
 }
@@ -253,6 +261,7 @@ async function settingsPanel() {
   <label class="check"><input type="checkbox" data-s="resolved"> Show resolved notes in files</label>
   <label>Your name on notes <input data-s="author" placeholder="${esc(state.info.author || '')}" value="${esc(s.author)}"></label>
   ${p ? `<h3>Claude Code in ${esc(p.name)}</h3><div id="hooks-box" class="faint small">…</div>` : ''}
+  <h3>This computer</h3><div id="machine-box" class="faint small">…</div>
   <h3>On your phone</h3>
   <p class="faint small">Open this page on your phone (the same Wi-Fi or Tailscale) and add it to your home screen. For notifications when an agent asks something: <code>npx hitloop notify ntfy</code>.</p>
   <h3>Shortcuts</h3>
@@ -270,6 +279,7 @@ async function settingsPanel() {
     };
   }
   if (p) paintHooks(pop.querySelector('#hooks-box'));
+  paintMachineSetting(pop.querySelector('#machine-box'));
   setTimeout(() => {
     const away = (e) => {
       if (!pop.contains(e.target) && !e.target.closest('#settings-btn')) {
@@ -305,6 +315,37 @@ async function paintHooks(box) {
       c.checked = !c.checked;
       toast(err.message);
     }
+  };
+}
+
+/** the machine dashboard: on or off, paused (it lives on the hub, for this whole computer) */
+async function paintMachineSetting(box) {
+  if (!box) return;
+  let m;
+  try {
+    m = await api('api/machine', { hub: true });
+  } catch (e) {
+    box.textContent = state.hub.mode === 'solo' ? 'The machine dashboard runs on the hub (hitl without --solo).' : e.message;
+    return;
+  }
+  box.classList.remove('faint', 'small');
+  const paused = m.paused ? (m.paused.until ? `paused until ${new Date(m.paused.until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : m.paused.kind === 'restart' ? 'paused until the hub restarts' : 'paused until you resume') : '';
+  box.innerHTML = `<label class="check"><input type="checkbox" id="machine-on" ${m.on ? 'checked' : ''}> Collect a dashboard of this computer: CPU, memory, disks, network, GPU, processes and every Claude Code session</label>
+  <p class="faint small">${m.on ? (paused ? `On, ${esc(paused)}. ` : 'On. ') : 'Off. '}Kept on this computer in <code>${esc(m.dir)}</code>. <a href="#/machine">Open it</a>${m.on ? (m.paused ? ' · <button class="link-btn" type="button" data-mp="off">Resume</button>' : ' · pause: <button class="link-btn" type="button" data-mp="1h">1 hour</button> · <button class="link-btn" type="button" data-mp="restart">until restart</button> · <button class="link-btn" type="button" data-mp="resume">until I resume</button>') : ''}</p>`;
+  const set = async (json, msg) => {
+    try {
+      await api('api/machine', { hub: true, method: 'POST', json });
+      toast(msg);
+    } catch (err) {
+      toast(err.message);
+    }
+    paintMachineSetting(box);
+    machineEvent({ kind: 'state' });
+  };
+  box.querySelector('#machine-on').onchange = (e) => set({ on: e.target.checked }, e.target.checked ? 'Machine dashboard on' : 'Machine dashboard off');
+  box.onclick = (e) => {
+    const b = e.target.closest('[data-mp]');
+    if (b) set({ pause: b.dataset.mp }, b.dataset.mp === 'off' ? 'Collecting again' : 'Paused');
   };
 }
 
@@ -349,6 +390,7 @@ function connect() {
     refreshHub();
   });
   es.addEventListener('projects', refreshHub);
+  es.addEventListener('machine', (ev) => machineEvent(JSON.parse(ev.data)));
   // back from sleep (a phone in a pocket): catch up
   document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && refreshHub());
 }
@@ -364,6 +406,7 @@ async function boot() {
   // one project only (hitl --solo): its inbox is home
   if (state.hub.mode === 'solo' && state.hub.projects[0] && (!location.hash || location.hash === '#/')) history.replaceState(null, '', `#/p/${encodeURIComponent(state.hub.projects[0].key)}`);
   $('settings-btn').innerHTML = icon('settings');
+  $('machine-btn').innerHTML = icon('monitor');
   $('proj-caret').innerHTML = icon('chevron-down', 14);
   const tabIcons = { inbox: 'home', files: 'folder', changes: 'diff', notes: 'chat', decisions: 'check' };
   for (const a of $('tabs').querySelectorAll('[data-tab]')) a.querySelector('.tab-ic').innerHTML = icon(tabIcons[a.dataset.tab], 18);

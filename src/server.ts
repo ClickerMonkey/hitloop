@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { StoreError } from './hub/atomic.js';
 import { Workspace, type ProjectSettings, type RequestChange } from './workspace.js';
 import { bearer, cookie, json, same } from './http.js';
+import { Machine } from './machine/index.js';
 
 export interface ServedProject {
   key: string;
@@ -88,6 +89,8 @@ export async function start(opts: Options): Promise<Running> {
   };
   refresh();
   started = true;
+  // the machine dashboard belongs to the hub (one per computer), not to a --solo server
+  const machine = opts.mode === 'hub' ? new Machine(broadcast) : undefined;
   const tick = setInterval(refresh, 3000);
   tick.unref();
   let listWatch: fs.FSWatcher | undefined;
@@ -169,6 +172,10 @@ export async function start(opts: Options): Promise<Running> {
       req.on('close', () => clients.delete(res));
       return;
     }
+    if (p === '/api/machine' || p.startsWith('/api/machine/')) {
+      if (!machine) return json(res, 404, { error: 'The machine dashboard runs on the hub, not a --solo server' });
+      return machine.handle(p.slice('/api/machine'.length), url, req, res);
+    }
     const pm = /^\/p\/([^/]+)(\/.*)?$/.exec(p);
     if (pm) {
       const w = pool.get(decodeURIComponent(pm[1] ?? ''));
@@ -186,6 +193,7 @@ export async function start(opts: Options): Promise<Running> {
     close: async () => {
       clearInterval(tick);
       clearInterval(ping);
+      machine?.close();
       listWatch?.close();
       for (const w of pool.values()) w.close();
       for (const c of clients) c.end();

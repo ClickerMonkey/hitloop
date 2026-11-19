@@ -24,6 +24,36 @@ much of their code as possible, and adds showings and reviews.
 - questionme and folderview stay published; their READMEs point to hitl. `hitl import` brings in `.questionme/` and
   `.review/` folders.
 
+## Decisions: the machine dashboard (Phil, 2026-11-19)
+
+Phil's request: "Update hitloop project to have a master dashboard for the machine. Showing anything node can get its
+hands on, stored in local round robin databases. Like system memory, CPU, etc. also a view of all the Claude agents
+running on the machine or something if they exist. Some cool stats from those transcript files around tokens etc. a
+master dashboard with tons of cool graphs on everything available to us. Also different tool call occurrences and
+durations or something. Whatever we can get for free that's the ultimate view into what's going on. Because Claude
+hides workflows and subagent info sometimes it's painful. All of this should be something that is optin and they can
+turn it off temporarily if they want."
+
+His answers (question set `machine-dashboard`):
+
+- Where: a Machine page in the hitl hub.
+- On and off: off until you turn it on in Settings; a Pause button for 1 h / until restart / until I resume.
+- System graphs: top processes, and total CPU/RAM of all claude and node processes; GPU %, VRAM, temperature
+  (nvidia-smi); network up/down per adapter; disk free per drive + read/write speed; memory used / free; CPU total and
+  per core.
+- Claude views: live sessions (name, folder, busy/idle, how long, CPU/RAM of its process); tokens over time (input,
+  output, thinking, cache read/write, by model and by project); tool calls (count, median and slowest durations,
+  errors, per tool); agent tree (a session's subagents and workflows, nested, with tokens, tool calls, time and status);
+  workflow runs (phases, agent count, duration, tokens, script, final result); estimated cost (API list prices ×
+  tokens), clearly marked as an estimate; cache hit rate and context size per turn; activity heatmap (hours × days).
+- History: the last 30 days, then keep going.
+- Storage: round-robin ring files for time series + a small JSON index per session for the agent tree.
+- Sampling: every 5 seconds, every 1 s while the page is open.
+- Hooks for live tool timing: no, transcripts are enough. OpenTelemetry: not now; maybe later.
+- Phone too: cards stack, graphs scroll sideways.
+
+Built in `src/machine/` (rrd.ts, system.ts, claude.ts, prices.ts, index.ts) and `client/src/machine/`.
+
 ## Shape
 
 ```

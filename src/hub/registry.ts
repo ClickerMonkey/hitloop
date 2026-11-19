@@ -106,6 +106,14 @@ export interface UserConfig {
   git?: boolean;
   watch?: boolean;
   readOnly?: boolean;
+  /** the machine dashboard (hitl machine): off unless on */
+  machine?: MachineConfig;
+}
+
+export interface MachineConfig {
+  on?: boolean;
+  /** "resume" (paused until you resume) or the time the pause ends (ISO) */
+  paused?: string;
 }
 
 export function userConfigPath(): string {

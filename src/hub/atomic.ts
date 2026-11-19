@@ -6,7 +6,7 @@ export class StoreError extends Error {}
 
 export const stripBom = (s: string) => (s.charCodeAt(0) === 0xfeff ? s.slice(1) : s);
 
-export function writeAtomic(file: string, text: string): void {
+export function writeAtomic(file: string, text: string | Uint8Array): void {
   const tmp = `${file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
   fs.writeFileSync(tmp, text);
   for (let i = 0; ; i++) {

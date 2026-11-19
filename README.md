@@ -185,6 +185,31 @@ Install the [ntfy app](https://ntfy.sh) and subscribe to the topic it prints. Qu
 notification once the agent has been quiet for 20 seconds); approvals go out within a couple of seconds, at high
 priority. Notifications say what's waiting, never your answers.
 
+## This computer (optional)
+
+A dashboard of the computer the hub runs on, behind the monitor button in the bar (`#/machine`). It's **off until you
+turn it on** (Settings, or `npx hitloop machine on`), and you can pause it for an hour, until the hub restarts, or until
+you resume (`npx hitloop machine pause [1h|restart|resume]`, `resume`, `off`).
+
+![This computer: CPU, memory, GPU, network, disk and Claude Code at a glance](docs/screens/desktop-machine.jpg)
+
+| ![Claude Code: tokens, cost, the sessions running now](docs/screens/desktop-machine-claude.jpg) | ![Tools: calls over time, the ones running now, every tool's failures and durations](docs/screens/desktop-machine-tools.jpg) |
+| --- | --- |
+| ![A session's workflow run: its phases and every agent's tokens, tool calls, time and cost](docs/screens/desktop-machine-session.jpg) | ![On a phone](docs/screens/phone-machine.jpg) |
+
+- **The computer**: CPU (all cores and each one), memory, GPU use, memory, heat and power (with `nvidia-smi`), network
+  per adapter, disk activity, free space per drive, the busiest processes, and every `claude` and `node` process
+  added up. Node's own numbers, plus `typeperf` and one PowerShell on Windows, `/proc` on Linux, `ps` on macOS.
+- **Claude Code**, read from `~/.claude` (nothing is installed in your projects): the sessions running now (busy or
+  waiting, context size, tokens, CPU and memory), tokens over time (cache reads and writes, new input, output,
+  thinking) by model and by project, an estimated cost at API list prices, cache hit rate, context per reply, when you
+  work (hour × weekday), every tool's calls, failures and how long they take, the tool calls running now, and each
+  session's subagents and workflow runs (phases, agents, tokens, tool calls, the script and its result).
+- **Kept** in `~/.config/hitl/machine/` as round-robin files that never grow: 5-second detail for an hour, minutes for
+  two days, 10 minutes for a month, hours for two years (about 100–200 KB per graph). The first time, it reads the
+  last 30 days of transcripts in the background; after that only what's added.
+- **Live** while the page is open: a sample every second (every 5 seconds otherwise).
+
 ## Safety
 
 - **A token by default**: the server listens on your network so your phone can reach it, so every request needs the
@@ -194,6 +219,7 @@ priority. Notifications say what's waiting, never your answers.
 - **What an agent writes is untrusted**: markdown is sanitised, HTML runs in a sandbox with no scripts, SVGs and files
   are served so they can't run script, diagrams are drawn as images.
 - **DNS rebinding** is refused (unknown host names), and so are writes from other sites.
+- **The machine dashboard** is off unless you turn it on, reads only on this computer, and sends nothing anywhere.
 - **It writes only** in `.hitl/` and its own config folder; `init` also writes `CLAUDE.md`, and the hooks
   `.claude/settings.json`.
 
@@ -205,6 +231,7 @@ npm test                                    # builds, then runs the tests
 node scripts/demo.mjs .demo/trailhead       # a demo project with everything in it
 HITL_HOME=.demo/home node dist/cli.js --solo .demo/trailhead --local
 node scripts/shots.mjs http://localhost:4199/ .demo/shots   # phone and desktop screenshots of every page
+npm run screens:machine -- http://localhost:4199/ <token> [session]   # the README's machine dashboard pictures
 ```
 
 - **The server** is TypeScript in `src/`, no runtime dependencies, Node 20 or newer.

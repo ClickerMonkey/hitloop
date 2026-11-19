@@ -82,6 +82,9 @@ Setup:
   hitl hooks [on|off] [--stop]                  turn those hooks on or off later
   hitl import [folder]                          bring in .questionme/ (questions, answers) and .review/ (notes)
   hitl stop                                     stop the hub
+  hitl machine [on|off|status|pause [1h|restart|resume]|resume]
+                                                the dashboard of this computer and its Claude Code sessions
+                                                (off until on; pause: an hour, until the hub restarts, until resumed)
   hitl projects [--forget <folder>]             the folders the hub serves
   hitl notify [ntfy [url]|webhook <url>|link <url>|test|off]
                                                 push notifications to your phone (the ntfy app, or a webhook)
@@ -118,7 +121,7 @@ const BOOLEAN = new Set([
 const REPEAT = new Set(['--allow-host', '--ids', '-x', '--exclude', '--hide']);
 const COMMANDS = new Set([
   'serve', 'init', 'status', 'news', 'wait', 'show', 'review', 'approve', 'feedback', 'ask', 'show-set', 'answers', 'notes', 'reply', 'ack', 'resolve', 'close', 'decisions', 'validate', 'schema', 'url', 'stop',
-  'projects', 'notify', 'hook', 'hooks', 'import', 'mcp', 'help', 'list',
+  'projects', 'notify', 'hook', 'hooks', 'import', 'mcp', 'help', 'list', 'machine',
 ]);
 
 function parse(argv: string[]): Args {
@@ -294,11 +297,59 @@ async function run(): Promise<void> {
       return hook();
     case 'hooks':
       return hooks();
+    case 'machine':
+      return machine();
     case 'notify':
       return notify();
     case 'import':
       return importOld();
   }
+}
+
+// ── the machine dashboard ──
+
+async function machine(): Promise<void> {
+  const [what = 'status', how] = args.pos;
+  let body: Record<string, unknown> | undefined;
+  if (what === 'on' || what === 'off') body = { on: what === 'on' };
+  else if (what === 'resume') body = { pause: 'off' };
+  else if (what === 'pause') {
+    const kind = how ?? '1h';
+    if (!['1h', 'restart', 'resume'].includes(kind)) fail('hitl machine pause [1h|restart|resume]');
+    body = { pause: kind };
+  } else if (what !== 'status') fail('hitl machine [on|off|status|pause [1h|restart|resume]|resume]');
+  const hub = await runningHub();
+  let st: { on: boolean; running: boolean; paused: { kind: string; until?: number } | null; dir?: string; bytes?: number; claude?: { progress?: { files: number; done: number } } | null } | undefined;
+  if (hub) {
+    const res = await fetch(`http://127.0.0.1:${hub.port}${hub.base ?? '/'}api/machine`, {
+      method: body ? 'POST' : 'GET',
+      headers: { 'content-type': 'application/json', ...(hub.token ? { authorization: `Bearer ${hub.token}` } : {}) },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+    const data = (await res.json()) as { error?: string };
+    if (!res.ok) fail(data.error ?? res.statusText);
+    st = data as typeof st;
+  } else {
+    // no hub running: change the setting; the hub follows it when it starts
+    if (body?.['pause'] === 'restart') fail('the hub is not running: there is nothing to pause until it restarts');
+    const c = updateUserConfig((cfg) => {
+      const m = (cfg.machine ??= {});
+      if (typeof body?.['on'] === 'boolean') {
+        m.on = body['on'];
+        delete m.paused;
+      }
+      if (body?.['pause'] === 'off') delete m.paused;
+      else if (body?.['pause'] === 'resume') m.paused = 'resume';
+      else if (body?.['pause'] === '1h') m.paused = new Date(Date.now() + 3600_000).toISOString();
+    });
+    const p = c.machine?.paused;
+    st = { on: !!c.machine?.on, running: false, paused: p ? (p === 'resume' ? { kind: 'resume' } : { kind: '1h', until: Date.parse(p) }) : null };
+  }
+  const pause = st?.paused ? (st.paused.until ? `paused until ${new Date(st.paused.until).toLocaleTimeString()}` : st.paused.kind === 'restart' ? 'paused until the hub restarts' : 'paused until you resume') : '';
+  console.log(`machine dashboard: ${st?.on ? (pause || (st.running ? 'on, collecting' : 'on (starts with the hub)')) : 'off'}`);
+  if (st?.dir) console.log(`  kept in ${tildeOf(st.dir)}${st.bytes ? ` (${(st.bytes / 1048576).toFixed(1)} MB)` : ''}`);
+  if (hub && st?.on) console.log('  ' + links(hub.port, hub.host, hub.token, '#/machine', hub.base)[0]);
+  if (!hub) console.log('  (the hub is not running: hitl starts it)');
 }
 
 // ── serve ──
