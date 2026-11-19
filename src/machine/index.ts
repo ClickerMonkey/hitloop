@@ -18,7 +18,7 @@ import { body, json } from '../http.js';
 import { StoreError } from '../hub/atomic.js';
 import { Rrd } from './rrd.js';
 import { SystemSampler, type Snapshot } from './system.js';
-import { ClaudeReader } from './claude.js';
+import { ClaudeReader, folderName } from './claude.js';
 
 export type PauseKind = '1h' | 'restart' | 'resume';
 
@@ -200,7 +200,7 @@ export class Machine {
           ...l,
           proc: p ? { cpu: p.cpu, mem: p.mem } : null,
           title: s?.title ?? '',
-          project: s?.project ?? path.basename(l.cwd),
+          project: s?.project || folderName(l.cwd),
           model: s?.model ?? '',
           tok: s?.tok ?? null,
           cost: s?.cost ?? 0,

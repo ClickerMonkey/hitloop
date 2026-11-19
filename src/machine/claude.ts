@@ -542,7 +542,7 @@ export class ClaudeReader {
   private place(s: SessionInfo, o: Record<string, unknown>): void {
     if (!s.cwd && str(o['cwd'])) {
       s.cwd = str(o['cwd']);
-      s.project = path.basename(s.cwd.replace(/[\\/]+$/, '')) || s.cwd;
+      s.project = folderName(s.cwd);
     }
     if (str(o['gitBranch'])) s.branch = str(o['gitBranch']);
     if (str(o['version'])) s.version = str(o['version']);
@@ -828,6 +828,8 @@ export class ClaudeReader {
   }
 }
 
+/** a folder's own name, whichever way its path is written (a Windows path read on Linux too) */
+export const folderName = (p: string) => p.split(/[\\/]+/).filter(Boolean).pop() ?? p;
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const safe = (s: string) => s.replace(/[^A-Za-z0-9._-]+/g, '_');
