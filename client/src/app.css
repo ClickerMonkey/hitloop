@@ -2320,6 +2320,49 @@ mark {
   opacity: 1;
   transform: translate(-50%, 0);
 }
+/* a page on its way (a project opening, a big folder): a running bar along the top, the tapped link dimmed */
+.progress {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 3px;
+  z-index: 80;
+  pointer-events: none;
+  opacity: 0;
+  overflow: hidden;
+  transition: opacity var(--medium) var(--ease);
+}
+.progress::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: progress-run 1s var(--ease) infinite;
+}
+body.loading .progress {
+  opacity: 1;
+}
+body.loading,
+body.loading a {
+  cursor: progress;
+}
+body.loading a.pending {
+  opacity: 0.55;
+  transition: opacity var(--medium) var(--ease);
+}
+@keyframes progress-run {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress::before {
+    animation-duration: 2.5s;
+  }
+}
 .skeleton {
   height: 14px;
   border-radius: 6px;

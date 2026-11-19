@@ -95,8 +95,10 @@ export async function load(p) {
 const RANK = { conflict: 6, deleted: 5, modified: 4, renamed: 3, added: 2, new: 1 };
 export async function loadGit() {
   if (!state.info.git) return;
+  const key = state.project;
   try {
     const s = await api('api/git/status');
+    if (state.project !== key) return; // another project opened meanwhile
     state.git = s;
     state.changes = new Map(s.changes.map((c) => [c.path, c]));
     state.ignored = s.ignored;
@@ -112,7 +114,7 @@ export async function loadGit() {
     }
     state.folderStates = fs;
   } catch {
-    state.git = null;
+    if (state.project === key) state.git = null;
   }
 }
 export function isIgnored(path) {

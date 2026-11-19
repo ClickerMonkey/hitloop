@@ -102,11 +102,6 @@ export function leaveFiles() {
 }
 
 /** a project was opened (or changed): what the files view needs before it draws */
-export async function loadProjectFiles() {
-  await Promise.all([loadGit(), loadComments()]);
-  paintBar();
-}
-
 /** live changes for the open project, from the shell's event stream */
 export async function filesChanged(b) {
   for (const f of b.folders) state.cache.delete(f);

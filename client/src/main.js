@@ -8,9 +8,9 @@
 //   #/p/<key>/q/<set>[/<id>]    a question set
 //   #/p/<key>/r/<id>[/<item>]   a review, a showing or an approval
 import { $, api, esc, emit, on, store, toast, debounce } from './util.js';
-import { enterProject, projectOf, setSetting, state, where } from './state.js';
+import { enterProject, loadComments, loadGit, projectOf, setSetting, state, where } from './state.js';
 import { icon } from './icons.js';
-import { filesChanged, filesHome, leaveFiles, loadProjectFiles, notesChanged, paintBar, showFiles, wireFiles, busyTyping } from './files.js';
+import { filesChanged, filesHome, leaveFiles, notesChanged, paintBar, showFiles, wireFiles, busyTyping } from './files.js';
 import { renderReviewPage } from './review.js';
 import { renderInbox, renderDecisions } from './inbox.js';
 import { showSet, leaveSet, setChanged } from './q/page.js';
@@ -45,11 +45,28 @@ let current = { page: '' };
 // one route at a time: a change of address while one is drawing waits, then the newest wins
 let routing = null;
 let again = false;
+// a page that takes a moment (a project opening, a big folder): the bar at the top runs and the tapped link dims
+let slow = 0;
+function loading(on) {
+  clearTimeout(slow);
+  if (on) slow = setTimeout(() => document.body.classList.add('loading'), 120);
+  else {
+    document.body.classList.remove('loading');
+    for (const a of document.querySelectorAll('a.pending')) a.classList.remove('pending');
+  }
+}
+addEventListener('click', (e) => {
+  const a = e.target.closest?.('a[href^="#"]');
+  if (!a || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey) return;
+  if (a.getAttribute('href') !== location.hash) a.classList.add('pending');
+});
+
 async function route() {
   if (routing) {
     again = true;
     return routing;
   }
+  loading(true);
   routing = (async () => {
     do {
       again = false;
@@ -60,8 +77,11 @@ async function route() {
     await routing;
   } finally {
     routing = null;
+    loading(false);
   }
 }
+// the open project's git status: the files views wait for it, everything else draws without it
+let gitReady = Promise.resolve();
 
 async function draw() {
   const r = parse();
@@ -70,11 +90,18 @@ async function draw() {
     if (r.key && !projectOf(r.key)) throw new Error(`No project "${r.key}" here (it may have moved, or this hub doesn't serve it).`);
     if (r.key !== state.project) {
       enterProject(r.key);
+      gitReady = Promise.resolve();
       if (r.key) {
-        state.info = await api('api/info');
-        await loadProjectFiles();
+        try {
+          [state.info] = await Promise.all([api('api/info'), loadComments()]);
+        } catch (e) {
+          enterProject(''); // not half-open: the next tap tries again
+          throw e;
+        }
+        gitReady = loadGit().then(() => r.key === state.project && paintBar());
       }
     }
+    if (r.page === 'files' || r.page === 'changes') await gitReady;
     const main = $('main');
     if (r.page !== 'files' && r.page !== 'changes') leaveFiles();
     if (r.page !== 'questions') leaveSet();
@@ -192,13 +219,14 @@ function projectMenu() {
   pop.style.top = r.bottom + 6 + 'px';
   document.body.append(pop);
   $('proj').setAttribute('aria-expanded', 'true');
+  // pointerdown outside closes it; a tap on one of its links closes it in onclick, after the link has done its work
+  // (removing it on pointerdown ate the click, so picking a project did nothing)
   const away = (e) => {
-    if (!pop.contains(e.target) || e.target.closest('a')) {
-      if (e.target.closest?.('#proj')) return;
-      $('proj').setAttribute('aria-expanded', 'false');
-      pop.remove();
-      removeEventListener('pointerdown', away, true);
-    }
+    if (!pop.isConnected) return removeEventListener('pointerdown', away, true);
+    if (pop.contains(e.target) || e.target.closest?.('#proj')) return;
+    $('proj').setAttribute('aria-expanded', 'false');
+    pop.remove();
+    removeEventListener('pointerdown', away, true);
   };
   setTimeout(() => addEventListener('pointerdown', away, true));
   pop.onclick = (e) => {
