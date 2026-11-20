@@ -1,4 +1,4 @@
-// Questions (questionme's part of hitl): the model, the store, the agent's reading and waiting, the page's API under
+// Questions: the model, the store, the agent's reading and waiting, the page's API under
 // p/<key>/api/q/, the CLI, the MCP tools and notifications. Runs against the built dist/ (npm test builds first).
 import { test as nodeTest, before, after } from 'node:test';
 import assert from 'node:assert/strict';

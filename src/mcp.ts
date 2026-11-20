@@ -299,7 +299,7 @@ const tools: Tool[] = [
     },
   },
 
-  // ── questions (questionme) ──
+  // ── questions ──
   {
     name: 'add_questions',
     description:

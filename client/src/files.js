@@ -1,4 +1,4 @@
-// A project's files (folderview): the folder tree, the folder or search or changes in the middle, the open file beside
+// A project's files: the folder tree, the folder or search or changes in the middle, the open file beside
 // it on a wide screen (over it on a phone), and the shortcuts. The shell (main.js) mounts this for #/p/<key>/files/….
 import { $, esc, on, emit, store } from './util.js';
 import { loadComments, loadGit, nav, go, state, where } from './state.js';

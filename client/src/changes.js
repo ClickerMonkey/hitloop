@@ -205,7 +205,7 @@ const diffCache = new Map();
 const folded = new Set(JSON.parse(sessionGet('folded') || '[]'));
 function sessionGet(k) {
   try {
-    return sessionStorage.getItem('folderview:' + k);
+    return sessionStorage.getItem('hitl:' + k);
   } catch {
     return null;
   }
@@ -216,7 +216,7 @@ function setFold(sec, shut) {
   if (shut) folded.add(sec.dataset.fk);
   else folded.delete(sec.dataset.fk);
   try {
-    sessionStorage.setItem('folderview:folded', JSON.stringify([...folded]));
+    sessionStorage.setItem('hitl:folded', JSON.stringify([...folded]));
   } catch {}
 }
 

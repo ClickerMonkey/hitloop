@@ -1,12 +1,12 @@
 /*
- * hitl's own parts, on folderview's design tokens: the shell (the bar, the sections: tabs on a wide screen, a bar at the
+ * hitl's own parts, on the shared design tokens: the shell (the bar, the sections: tabs on a wide screen, a bar at the
  * bottom on a phone), pages that read as one column (the inbox, a review, notes, decisions), and the review page
  * (items, verdicts, comments on lines and pictures, before/after, one at a time).
  */
 
 /* ── the shell ── */
 :root {
-  /* what sticks under the bar (questionme's set tools) sits under hitl's bar */
+  /* what sticks under the bar (a question set's tools) sits under hitl's bar */
   --bar: var(--bar-h);
 }
 .brand .logo {
@@ -1254,7 +1254,7 @@ button.gut {
   border-top: 1px solid var(--border);
 }
 
-/* a phone: questionme's card arrows sit above the section bar */
+/* a phone: a question set's card arrows sit above the section bar */
 @media (max-width: 759px) {
   body:has(.nav-tabs:not([hidden])) .card-nav {
     bottom: calc(68px + var(--safe-bottom));

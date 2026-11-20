@@ -10,13 +10,15 @@ import { StoreError, ensureReadme } from './hub/atomic.js';
 import { start, version } from './server.js';
 import { describeSet, readAnswers, FILTERS, type Filter } from './q/agent.js';
 import { decisionsText, news, newsCounts, openProject, overviewText, parseDuration, readFeedback, readNotes, waitFor, type ProjectView, type ReviewFilter, type WaitFor } from './agent.js';
-import { clearHubState, configDir, ensureHub, forget, hubToken, keyed, links, projects, projectsPath, register, runningHub, normaliseBase, userConfig, userConfigPath, updateUserConfig, writeHubState } from './hub/registry.js';
+import { clearHubState, configDir, ensureHub, forget, hubToken, keyed, lanAddresses, links, projects, projectsPath, register, runningHub, normaliseBase, userConfig, userConfigPath, updateUserConfig, writeHubState } from './hub/registry.js';
 import { setSchema } from './q/schema.js';
 import { reviewSchema } from './r/schema.js';
 import { serveMcp, defaultFrom } from './mcp.js';
 import { normalise as normaliseSet } from './q/model.js';
 import { normalise as normaliseReview } from './r/model.js';
-import { Notifier, linkBase, notifyConfig, notifyEnabled, send } from './hub/notify.js';
+import { EVENTS, Notifier, eventOn, isSlackWebhook, maskSlack, linkBase, notifyConfig, notifyEnabled, send, testNotice, type NotifyEvent } from './hub/notify.js';
+import { ensureTls, caInfo, resetTls, tlsDir, wantedNames } from './hub/tls.js';
+import { subscriptions } from './hub/webpush.js';
 import { projectSettings } from './settings.js';
 import type { ProjectSettings } from './workspace.js';
 import type { ItemArg } from './r/store.js';
@@ -80,14 +82,18 @@ Setup:
                      --hook: tell Claude about news whenever you send it a message
                      --stop-hook: don't let Claude finish while a blocking question or approval is waiting
   hitl hooks [on|off] [--stop]                  turn those hooks on or off later
-  hitl import [folder]                          bring in .questionme/ (questions, answers) and .review/ (notes)
   hitl stop                                     stop the hub
   hitl machine [on|off|status|pause [1h|restart|resume]|resume]
                                                 the dashboard of this computer and its Claude Code sessions
                                                 (off until on; pause: an hour, until the hub restarts, until resumed)
   hitl projects [--forget <folder>]             the folders the hub serves
-  hitl notify [ntfy [url]|webhook <url>|link <url>|test|off]
-                                                push notifications to your phone (the ntfy app, or a webhook)
+  hitl notify [slack <url>|webhook <url>|link <url>|push on|off|test|off]
+                                                notifications: Web Push (turn it on in the page), a Slack channel
+                                                (an incoming webhook), or any webhook
+  hitl notify events [<event> on|off]           which events notify (questions, approve, review, show, replies, acks,
+                                                resolved, updates, claudeIdle, workflowDone, alert)
+  hitl https [on|off|status|trust|reset]        answer https on the hub's port too, with hitl's own certificate, so a
+                                                phone can get push notifications (it installs the certificate once)
   hitl hook [prompt|stop]                       the Claude Code hooks themselves (prompt: news; stop: the gate)
   hitl mcp                                      the MCP server, on stdio
 
@@ -121,7 +127,7 @@ const BOOLEAN = new Set([
 const REPEAT = new Set(['--allow-host', '--ids', '-x', '--exclude', '--hide']);
 const COMMANDS = new Set([
   'serve', 'init', 'status', 'news', 'wait', 'show', 'review', 'approve', 'feedback', 'ask', 'show-set', 'answers', 'notes', 'reply', 'ack', 'resolve', 'close', 'decisions', 'validate', 'schema', 'url', 'stop',
-  'projects', 'notify', 'hook', 'hooks', 'import', 'mcp', 'help', 'list', 'machine',
+  'projects', 'notify', 'https', 'hook', 'hooks', 'mcp', 'help', 'list', 'machine',
 ]);
 
 function parse(argv: string[]): Args {
@@ -301,8 +307,8 @@ async function run(): Promise<void> {
       return machine();
     case 'notify':
       return notify();
-    case 'import':
-      return importOld();
+    case 'https':
+      return httpsCmd();
   }
 }
 
@@ -421,6 +427,8 @@ async function serve(): Promise<void> {
       notifier.observe(key, c.kind, c.id);
     },
     onProject: (key) => notifier.baseline(key),
+    tls: { enabled: () => !!userConfig().https, get: ensureTls },
+    onMachine: (e) => notifier.machine(e),
   });
   listening = running.port;
   if (!solo) writeHubState({ pid: process.pid, port: running.port, host, token, base, version, started: new Date().toISOString() });
@@ -433,7 +441,13 @@ async function serve(): Promise<void> {
   if (!token && host !== '127.0.0.1') console.log('  (no token: anyone on your network can open it)');
   if (!background && fs.existsSync(path.join(root, '.hitl'))) console.log('  ' + overviewText(openProject(root)).split('\n').join('\n  '));
   const n = notifyConfig(cfg);
-  console.log(notifyEnabled(n) ? `  notifications: ${[n.ntfy ? 'ntfy' : '', n.webhook ? 'webhook' : ''].filter(Boolean).join(' + ')} (hitl notify test)` : '  notifications: off (hitl notify ntfy puts them on your phone)');
+  const devices = n.push !== false ? subscriptions().length : 0;
+  console.log(
+    notifyEnabled(n)
+      ? `  notifications: ${[devices ? `push to ${devices} device${devices === 1 ? '' : 's'}` : '', n.slack ? 'Slack' : '', n.webhook ? 'webhook' : ''].filter(Boolean).join(' + ')} (hitl notify test)`
+      : '  notifications: off (turn them on in the page: Settings → Notifications)',
+  );
+  if (running.https()) console.log(`  https on this port too (hitl https): phones install the certificate from Settings → Notifications`);
   console.log('  every command and option: npx hitloop --help');
   if (flag('-o', '--open')) openBrowser(links(running.port, host, token, hash, base)[0] ?? '');
 
@@ -660,36 +674,39 @@ function validate(): void {
 // ── notify ──
 
 async function notify(): Promise<void> {
-  const [what, arg] = args.pos;
+  const [what, arg, onOff] = args.pos;
   const hubPort = () => readHub()?.port ?? PORT;
   const show = () => {
     const n = notifyConfig();
+    const devices = subscriptions();
     console.log(`Notifications (${tildeOf(userConfigPath())}):`);
-    console.log(`  ntfy:    ${n.ntfy ?? '(off)'}`);
+    console.log(`  push:    ${n.push === false ? 'paused' : devices.length ? `${devices.length} device${devices.length === 1 ? '' : 's'}` : '(no devices: turn it on in the page, Settings → Notifications)'}`);
+    for (const d of devices) console.log(`             ${d.device} (${d.origin})${d.lastError ? `  last error: ${d.lastError}` : ''}`);
+    console.log(`  slack:   ${n.slack ? maskSlack(n.slack) : '(off)  (hitl notify slack <incoming webhook url>)'}`);
     console.log(`  webhook: ${n.webhook ?? '(off)'}`);
     console.log(`  links:   ${linkBase(n, hubPort(), '', readHub()?.base)}  (hitl notify link <url> to change)`);
     console.log(`  batched: sent once agents have been quiet for ${n.quietSeconds ?? 20} s (approvals: at once)`);
-    if (!notifyEnabled(n)) console.log('\nTurn them on: hitl notify ntfy   (then subscribe in the ntfy app)');
+    console.log(`  events:  ${EVENTS.map((e) => `${e.id} ${eventOn(n, e.id) ? 'on' : 'off'}`).join(', ')}`);
+    if (!notifyEnabled(n)) console.log('\nTurn them on in the page: Settings → Notifications (or the bell at the top).');
   };
   const test = async () => {
     const n = notifyConfig();
-    if (!notifyEnabled(n)) fail('notifications are off: hitl notify ntfy (or webhook <url>) first');
-    await send(n, { title: 'hitl: notifications work', message: "You'll get one when an agent asks you something, shows you something, or waits for your OK.", url: linkBase(n, hubPort(), '', readHub()?.base), project: '', request: '', kind: 'test', newQuestions: 0, newItems: 0, approval: false, blocking: 0, replies: 0 });
-    console.log('Sent a test notification.');
+    if (!notifyEnabled(n)) fail('notifications are off: turn on push in the page (Settings → Notifications), or hitl notify slack <url> (or webhook <url>)');
+    const r = await send(n, testNotice(n, hubPort(), readHub()?.base));
+    console.log(`Sent a test notification${r.push ? ` (push: ${r.push.sent} device${r.push.sent === 1 ? '' : 's'})` : ''}.`);
   };
   switch (what) {
     case undefined:
       return show();
-    case 'ntfy': {
-      const url = arg ?? `https://ntfy.sh/hitl-${crypto.randomBytes(9).toString('base64url').toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-      if (!/^https?:\/\/[^/]+\/[^/]+/.test(url)) fail('an ntfy topic URL looks like https://ntfy.sh/your-topic');
-      updateUserConfig((c) => (c.notify = { ...c.notify, ntfy: url }));
-      console.log(`✓ ntfy topic: ${url}`);
-      console.log('  On your phone: install the ntfy app (Android or iOS), tap +, and subscribe to');
-      console.log(`  the topic "${new URL(url).pathname.slice(1)}"${new URL(url).host === 'ntfy.sh' ? '' : ` on the server ${new URL(url).origin}`}.`);
-      console.log('  Anyone who knows the topic can read it: notifications say what is waiting, never your answers.');
+    case 'slack':
+      if (arg === 'off') {
+        updateUserConfig((c) => c.notify && delete c.notify.slack);
+        return void console.log('Slack: off');
+      }
+      if (!arg || !isSlackWebhook(arg)) fail('hitl notify slack <https://hooks.slack.com/services/…>  (Slack: Apps → Incoming Webhooks → Add to a channel; or off)');
+      updateUserConfig((c) => (c.notify = { ...c.notify, slack: arg }));
+      console.log(`✓ Slack: ${maskSlack(arg)}`);
       return test();
-    }
     case 'webhook':
       if (!arg || !/^https?:\/\//.test(arg)) fail('hitl notify webhook <https://…>');
       updateUserConfig((c) => (c.notify = { ...c.notify, webhook: arg }));
@@ -699,18 +716,97 @@ async function notify(): Promise<void> {
       if (!arg || !/^https?:\/\//.test(arg)) fail('hitl notify link <http://host:port> (where your phone opens hitl)');
       updateUserConfig((c) => (c.notify = { ...c.notify, link: arg }));
       return show();
+    case 'push':
+      if (arg !== 'on' && arg !== 'off') fail('hitl notify push on|off');
+      updateUserConfig((c) => (c.notify = { ...c.notify, push: arg === 'on' }));
+      return show();
+    case 'events': {
+      if (!arg) {
+        const n = notifyConfig();
+        for (const e of EVENTS) console.log(`  ${eventOn(n, e.id) ? '✓' : '·'} ${e.id.padEnd(13)} ${e.label}: ${e.detail}`);
+        return;
+      }
+      const e = EVENTS.find((x) => x.id.toLowerCase() === arg.toLowerCase());
+      if (!e) fail(`no event "${arg}": ${EVENTS.map((x) => x.id).join(', ')}`);
+      if (onOff !== 'on' && onOff !== 'off') fail(`hitl notify events ${e.id} on|off`);
+      updateUserConfig((c) => ((c.notify ??= {}).events = { ...c.notify.events, [e.id as NotifyEvent]: onOff === 'on' }));
+      return void console.log(`${e.label}: ${onOff}`);
+    }
     case 'test':
       return test();
     case 'off':
       updateUserConfig((c) => {
         if (c.notify) {
-          delete c.notify.ntfy;
           delete c.notify.webhook;
+          delete c.notify.slack;
+          c.notify.push = false;
         }
       });
-      return void console.log('Notifications are off.');
+      return void console.log('Notifications are off (Slack and the webhook forgotten, push paused: hitl notify push on).');
   }
-  fail('hitl notify [ntfy [url]|webhook <url>|link <url>|test|off]');
+  fail('hitl notify [slack <url>|off|webhook <url>|link <url>|push on|off|events [<event> on|off]|test|off]');
+}
+
+// ── https ──
+
+async function httpsCmd(): Promise<void> {
+  const [what] = args.pos;
+  const hub = readHub();
+  const restart = () => console.log(hub ? '  The running hub follows it now.' : '  It applies when the hub starts (hitl).');
+  const status = () => {
+    const on = !!userConfig().https;
+    const ca = caInfo();
+    console.log(`https: ${on ? 'on' : 'off'}`);
+    if (ca) {
+      console.log(`  certificate authority: ${tildeOf(path.join(tlsDir(), 'ca.crt'))}`);
+      console.log(`  its fingerprint (SHA-256): ${ca.fingerprint}`);
+    }
+    const w = wantedNames();
+    console.log(`  covers: ${[...w.names, ...w.ips].join(', ')}`);
+    if (on && hub) for (const ip of lanAddresses()) console.log(`  https://${ip}:${hub.port}/`);
+    if (on) console.log('  On a phone: open hitl, Settings → Notifications, and follow "Set up this phone".');
+  };
+  switch (what) {
+    case undefined:
+    case 'status':
+      return status();
+    case 'on': {
+      updateUserConfig((c) => (c.https = true));
+      ensureTls();
+      console.log('✓ https on: the hub answers http and https on the same port, with its own certificate.');
+      restart();
+      return status();
+    }
+    case 'off':
+      updateUserConfig((c) => delete c.https);
+      console.log('https off (the certificate stays, so phones that installed it keep trusting it if you turn it on again).');
+      return restart();
+    case 'reset':
+      resetTls();
+      if (userConfig().https) ensureTls();
+      console.log('A new certificate authority: every phone has to install the new one (and can remove the old one).');
+      return restart();
+    case 'trust': {
+      const t = ensureTls();
+      const file = path.join(tlsDir(), 'ca.crt');
+      console.log(`Trusting ${tildeOf(file)} on this computer (fingerprint ${t.fingerprint}).`);
+      console.log('  (Not needed for notifications here: http://localhost already counts as secure.)');
+      const run = (cmd: string, a: string[]) => {
+        const r = spawnSync(cmd, a, { stdio: 'inherit' });
+        if (r.status !== 0) fail(`${cmd} failed`);
+      };
+      if (process.platform === 'win32') run('certutil', ['-user', '-addstore', 'Root', file]);
+      else if (process.platform === 'darwin') run('security', ['add-trusted-cert', '-r', 'trustRoot', '-k', path.join(os.homedir(), 'Library/Keychains/login.keychain-db'), file]);
+      else {
+        console.log('  Linux: copy it where your system keeps them, e.g.');
+        console.log(`    sudo cp ${file} /usr/local/share/ca-certificates/hitl.crt && sudo update-ca-certificates`);
+        console.log('  Firefox and Chrome keep their own lists: import it in their certificate settings.');
+        return;
+      }
+      return void console.log('✓ trusted. Restart the browser.');
+    }
+  }
+  fail('hitl https [on|off|status|trust|reset]');
 }
 
 function readHub() {
@@ -825,57 +921,7 @@ function init(): void {
   }
   if (flag('--hook') || flag('--stop-hook')) for (const line of setHooks(root, { ...(flag('--hook') ? { prompt: true } : {}), ...(flag('--stop-hook') ? { stop: true } : {}) })) console.log(line);
   else console.log('- Hooks: off (hitl hooks on: news when you send a message; hitl hooks on --stop: a gate before Claude finishes)');
-  if (fs.existsSync(path.join(root, '.questionme')) || fs.existsSync(path.join(root, '.review'))) console.log('- Found .questionme/ or .review/: hitl import brings them in');
   console.log('\nOpen it on your phone: npx hitloop  (or: hitl url)');
-}
-
-// ── import: questionme and folderview folders ──
-
-function importOld(): void {
-  const root = path.resolve(args.pos[0] ?? value('-C', '--folder') ?? process.cwd());
-  const dir = path.join(root, '.hitl');
-  let n = 0;
-  const copyDir = (from: string, to: string, filter: (f: string) => boolean) => {
-    if (!fs.existsSync(from)) return;
-    fs.mkdirSync(to, { recursive: true });
-    for (const f of fs.readdirSync(from)) {
-      if (!filter(f)) continue;
-      const dest = path.join(to, f);
-      if (fs.existsSync(dest)) {
-        console.log(`  skipped ${path.relative(root, dest)} (already there)`);
-        continue;
-      }
-      fs.copyFileSync(path.join(from, f), dest);
-      n++;
-    }
-  };
-  const qm = path.join(root, '.questionme');
-  copyDir(path.join(qm, 'sets'), path.join(dir, 'questions'), (f) => f.endsWith('.json'));
-  copyDir(path.join(qm, 'answers'), path.join(dir, 'answers'), (f) => f.endsWith('.json') || f.endsWith('.md'));
-  const rv = path.join(root, '.review');
-  const old = path.join(rv, 'comments.json');
-  if (fs.existsSync(old)) {
-    const notesDir = path.join(dir, 'notes');
-    const target = path.join(notesDir, 'notes.json');
-    let mine: { comments?: unknown[]; seq?: number; readSeq?: number } = {};
-    try {
-      mine = JSON.parse(fs.readFileSync(target, 'utf8')) as typeof mine;
-    } catch {
-      mine = {};
-    }
-    const theirs = (JSON.parse(fs.readFileSync(old, 'utf8')) as { comments?: { id: string }[] }).comments ?? [];
-    const have = new Set((mine.comments ?? []).map((c) => (c as { id: string }).id));
-    const add = theirs.filter((c) => !have.has(c.id));
-    fs.mkdirSync(notesDir, { recursive: true });
-    const comments = [...(mine.comments ?? []), ...add];
-    fs.writeFileSync(target, JSON.stringify({ version: 1, seq: (mine.seq ?? 0) + add.length, readSeq: mine.readSeq ?? 0, comments }, null, 2) + '\n');
-    copyDir(path.join(rv, 'images'), path.join(notesDir, 'images'), () => true);
-    n += add.length;
-    console.log(`  ${add.length} note${add.length === 1 ? '' : 's'} from .review/comments.json`);
-  }
-  ensureReadme(dir);
-  register(root);
-  console.log(n ? `✓ Imported ${n} file${n === 1 ? '' : 's'} and notes into ${tildeOf(dir)}. The old folders are untouched: delete them when you're happy.` : 'Nothing to import (no .questionme/ or .review/ here).');
 }
 
 // ── small helpers ──

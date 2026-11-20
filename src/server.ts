@@ -1,14 +1,20 @@
 // The HTTP server (the hub): the page, every project it serves (files, notes, questions, reviews, under p/<key>/),
 // and live events when anything changes. One server for every project, so a phone needs one bookmark.
 import http from 'node:http';
+import net from 'node:net';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { StoreError } from './hub/atomic.js';
 import { Workspace, type ProjectSettings, type RequestChange } from './workspace.js';
-import { bearer, cookie, json, same } from './http.js';
-import { Machine } from './machine/index.js';
+import { bearer, body, cookie, json, same } from './http.js';
+import { Machine, type MachineEvent } from './machine/index.js';
+import { dualServer, caInfo, ensureTls, type TlsSource } from './hub/tls.js';
+import { EVENTS, eventOn, isSlackWebhook, maskSlack, notifyConfig, send, testNotice, type NotifyEvent } from './hub/notify.js';
+import { deviceName, pushAll, subscribe, subscriptions, unsubscribe, vapidPublicKey } from './hub/webpush.js';
+import { lanAddresses, updateUserConfig } from './hub/registry.js';
 
 export interface ServedProject {
   key: string;
@@ -33,10 +39,16 @@ export interface Options {
   onRequest?: (project: string, change: RequestChange) => void;
   /** a project joined after the start */
   onProject?: (project: string) => void;
+  /** answer https on the same port too, when it says so */
+  tls?: TlsSource;
+  /** something on the machine dashboard worth a notification */
+  onMachine?: (e: MachineEvent) => void;
 }
 
 export interface Running {
-  server: http.Server;
+  server: net.Server;
+  /** https is answered on the port too (now) */
+  https: () => boolean;
   port: number;
   pool: Map<string, Workspace>;
   close: () => Promise<void>;
@@ -90,7 +102,7 @@ export async function start(opts: Options): Promise<Running> {
   refresh();
   started = true;
   // the machine dashboard belongs to the hub (one per computer), not to a --solo server
-  const machine = opts.mode === 'hub' ? new Machine(broadcast) : undefined;
+  const machine = opts.mode === 'hub' ? new Machine(broadcast, opts.onMachine) : undefined;
   const tick = setInterval(refresh, 3000);
   tick.unref();
   let listWatch: fs.FSWatcher | undefined;
@@ -111,13 +123,17 @@ export async function start(opts: Options): Promise<Running> {
 
   const allowed = allowedHosts(opts.host, opts.allowHosts ?? []);
 
-  const server = http.createServer((req, res) => {
+  const dual = dualServer((req, res) => {
     handle(req, res).catch((err: unknown) => {
       const code = err instanceof StoreError ? 400 : 500;
       if (!res.headersSent) json(res, code, { error: err instanceof Error ? err.message : String(err) });
       else res.end();
     });
-  });
+  }, opts.tls);
+  const server = dual.server;
+  // a new Wi-Fi address needs a certificate that names it
+  const certCheck = setInterval(() => dual.refresh(), 60_000);
+  certCheck.unref();
 
   async function handle(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
     // DNS rebinding: a page on another site that resolves its name to this machine is refused
@@ -131,6 +147,17 @@ export async function start(opts: Options): Promise<Running> {
     const p = '/' + url.pathname.slice(base.length);
     if (p === '/api/ping') return json(res, 200, { app: 'hitl', version, mode: opts.mode, base });
     if (p === '/manifest.webmanifest') return manifest(res, base);
+    if (p === '/sw.js') return sendStatic(req, res, path.join(clientDir, 'sw.js'), false);
+    // the certificate authority is public (it's what a phone installs to trust this hub)
+    if (p === '/hitl-ca.crt' || p === '/hitl-ca.pem') {
+      const ca = caInfo();
+      if (!ca) return json(res, 404, { error: 'https is off: hitl https on' });
+      const der = p.endsWith('.crt');
+      const file = `hitl-${os.hostname().toLowerCase().replace(/[^a-z0-9-]/g, '')}-ca.${der ? 'crt' : 'pem'}`;
+      return void res
+        .writeHead(200, { 'content-type': der ? 'application/x-x509-ca-cert' : 'application/x-pem-file', 'content-disposition': `attachment; filename="${file}"`, 'cache-control': 'no-store' })
+        .end(der ? ca.der : ca.cert);
+    }
     if (token) {
       const given = url.searchParams.get('token') ?? bearer(req) ?? cookie(req, 'hitl_token') ?? '';
       if (!same(given, token)) {
@@ -172,6 +199,7 @@ export async function start(opts: Options): Promise<Running> {
       req.on('close', () => clients.delete(res));
       return;
     }
+    if (p === '/api/notify' || p.startsWith('/api/notify/')) return notifyApi(p.slice('/api/notify'.length), req, res);
     if (p === '/api/machine' || p.startsWith('/api/machine/')) {
       if (!machine) return json(res, 404, { error: 'The machine dashboard runs on the hub, not a --solo server' });
       return machine.handle(p.slice('/api/machine'.length), url, req, res);
@@ -185,25 +213,135 @@ export async function start(opts: Options): Promise<Running> {
     return json(res, 404, { error: 'not found' });
   }
 
+  /** Notifications: what's on, the devices that get Web Push, https, and a test. */
+  async function notifyApi(sub: string, req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    const method = req.method ?? 'GET';
+    const secure = 'encrypted' in req.socket && !!req.socket.encrypted;
+    const hostName = (req.headers.host ?? '').replace(/:\d+$/, '').replace(/^\[|\]$/g, '').toLowerCase();
+    const origin = `${secure ? 'https' : 'http'}://${req.headers.host ?? ''}`;
+    const idOf = (endpoint: string) => crypto.createHash('sha1').update(endpoint).digest('hex').slice(0, 12);
+    if (sub === '/subscribe' && method === 'POST') {
+      const b = await body(req);
+      const s = b['subscription'] as { endpoint: string; keys: { p256dh: string; auth: string } } | undefined;
+      if (!s || typeof s !== 'object') throw new StoreError('{ subscription }');
+      try {
+        const saved = subscribe(s, deviceName(String(req.headers['user-agent'] ?? '')), origin);
+        return json(res, 200, { ok: true, id: idOf(saved.endpoint) });
+      } catch (e) {
+        throw new StoreError(e instanceof Error ? e.message : String(e));
+      }
+    }
+    if (sub === '/unsubscribe' && method === 'POST') {
+      const b = await body(req);
+      const id = String(b['id'] ?? '');
+      const endpoint = String(b['endpoint'] ?? '') || subscriptions().find((x) => idOf(x.endpoint) === id)?.endpoint || '';
+      return json(res, 200, { ok: unsubscribe(endpoint) });
+    }
+    if (sub === '/test' && method === 'POST') {
+      const b = await body(req);
+      const cfg = notifyConfig();
+      const n = testNotice(cfg, Number(req.socket.localPort) || opts.port, base);
+      const id = typeof b['id'] === 'string' ? b['id'] : '';
+      if (b['channel'] === 'slack') {
+        if (!cfg.slack) return json(res, 200, { ok: false, error: 'Slack is off' });
+        try {
+          await send({ slack: cfg.slack, push: false }, { ...n, message: 'Slack gets them here. ' + n.message });
+          return json(res, 200, { ok: true });
+        } catch (e) {
+          return json(res, 200, { ok: false, error: e instanceof Error ? e.message : String(e) });
+        }
+      }
+      if (id) {
+        const r = await pushAll({ title: n.title, body: 'This device gets them. ' + n.message, hash: n.hash, tag: 'test' }, (x) => idOf(x.endpoint) === id);
+        return json(res, 200, { ok: r.sent > 0, ...r });
+      }
+      try {
+        const r = await send(cfg, n);
+        return json(res, 200, { ok: true, ...r });
+      } catch (e) {
+        return json(res, 200, { ok: false, error: e instanceof Error ? e.message : String(e) });
+      }
+    }
+    if (sub === '' || sub === '/') {
+      if (method === 'POST') {
+        const b = await body(req);
+        const slack = b['slack'];
+        if (slack !== undefined && slack !== null && slack !== '' && (typeof slack !== 'string' || !isSlackWebhook(slack.trim())))
+          throw new StoreError('That is not a Slack incoming webhook: it looks like https://hooks.slack.com/services/T…/B…/…');
+        updateUserConfig((c) => {
+          const n = (c.notify ??= {});
+          if (slack === null || slack === '') delete n.slack;
+          else if (typeof slack === 'string') n.slack = slack.trim();
+          if (typeof b['push'] === 'boolean') n.push = b['push'];
+          const ev = b['events'];
+          if (ev && typeof ev === 'object')
+            for (const [k, v] of Object.entries(ev as Record<string, unknown>)) if (EVENTS.some((e) => e.id === k) && typeof v === 'boolean') (n.events ??= {})[k as NotifyEvent] = v;
+          if (typeof b['https'] === 'boolean') {
+            if (b['https']) {
+              ensureTls();
+              c.https = true;
+            }
+            else delete c.https;
+          }
+          if (typeof b['quietSeconds'] === 'number') n.quietSeconds = Math.max(1, Math.min(600, b['quietSeconds']));
+        });
+      }
+      const cfg = notifyConfig();
+      const ca = caInfo();
+      const url = (u: string) => {
+        try {
+          const x = new URL(u);
+          return x.host + (x.pathname === '/' ? '' : x.pathname);
+        } catch {
+          return u;
+        }
+      };
+      return json(res, 200, {
+        events: EVENTS.map((e) => ({ ...e, on: eventOn(cfg, e.id) })),
+        push: cfg.push !== false,
+        quietSeconds: cfg.quietSeconds ?? 20,
+        channels: { webhook: cfg.webhook ? url(cfg.webhook) : '', slack: cfg.slack ? maskSlack(cfg.slack) : '' },
+        devices: subscriptions().map((s) => ({ id: idOf(s.endpoint), device: s.device, origin: s.origin, added: s.added, lastOk: s.lastOk ?? '', lastError: s.lastError ?? '', service: new URL(s.endpoint).host })),
+        vapidKey: vapidPublicKey(),
+        https: {
+          on: !!opts.tls?.enabled(),
+          port: Number(req.socket.localPort) || opts.port,
+          fingerprint: ca?.fingerprint ?? '',
+          secure,
+          host: hostName,
+          // the secure page on each address, with the token (a cookie from http may not carry over)
+          links: opts.tls?.enabled() ? lanAddresses().map((ip) => `https://${ip}:${Number(req.socket.localPort) || opts.port}${base}${token ? `?token=${encodeURIComponent(token)}` : ''}#/notify`) : [],
+        },
+        machine: opts.mode === 'hub',
+      });
+    }
+    return json(res, 404, { error: 'not found' });
+  }
+
   const port = await listen(server, opts.port, opts.host);
   return {
     server,
+    https: () => !!opts.tls?.enabled(),
     port,
     pool,
     close: async () => {
       clearInterval(tick);
       clearInterval(ping);
+      clearInterval(certCheck);
       machine?.close();
       listWatch?.close();
       for (const w of pool.values()) w.close();
       for (const c of clients) c.end();
-      await new Promise<void>((r) => server.close(() => r()));
+      const closed = new Promise<void>((r) => server.close(() => r()));
+      dual.http.closeAllConnections();
+      dual.https()?.closeAllConnections();
+      await closed;
     },
   };
 }
 
 /** listen on the port, or the next free one */
-function listen(server: http.Server, port: number, host: string, tries = 20): Promise<number> {
+function listen(server: net.Server, port: number, host: string, tries = 20): Promise<number> {
   return new Promise((resolve, reject) => {
     const onError = (err: NodeJS.ErrnoException) => {
       server.off('listening', onListening);
@@ -260,7 +398,11 @@ function manifest(res: http.ServerResponse, base: string): void {
     display: 'standalone',
     background_color: '#f8f8fb',
     theme_color: '#5b5fd6',
-    icons: [{ src: icon, sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }],
+    icons: [
+      { src: icon, sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+      { src: `${base}assets/icon-192.png`, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+      { src: `${base}assets/icon-512.png`, sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+    ],
   });
 }
 

@@ -1,5 +1,5 @@
 // Notes from the human: the threads shown beside lines, the composer (with photos), and the Notes page that lists them
-// all. (folderview's review comments; an agent reads them with `hitl news` and resolves them with a reply.)
+// all. (An agent reads them with `hitl news` and resolves them with a reply.)
 import { $, api, ago, copy, emit, esc, purl, toast } from './util.js';
 import { photoInputHtml, readPhotos, photosHtml } from './photos.js';
 import { author, commentsOn, fileHref, loadComments, setSetting, state } from './state.js';

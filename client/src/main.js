@@ -1,13 +1,14 @@
 // hitl's page: one shell (the bar, the sections, settings, live updates) around the views: the inbox, a project's
-// files (folderview), its notes and decisions, a question set (questionme) and a review.
+// files, its notes and decisions, a question set and a review.
 //   #/                          everything waiting on you, every project
 //   #/p/<key>                   one project's inbox
-//   #/p/<key>/files/<folder>?…  its files (open, search, changes, history: folderview's address)
+//   #/p/<key>/files/<folder>?…  its files (open, search, changes, history)
 //   #/p/<key>/notes             your notes for the agent
 //   #/p/<key>/decisions         what you decided
 //   #/p/<key>/q/<set>[/<id>]    a question set
 //   #/p/<key>/r/<id>[/<item>]   a review, a showing or an approval
 //   #/machine[/s/<session>[/c | /a/<agent>]]  this computer, a session, and a conversation in it (when it's turned on)
+//   #/notify                    notifications: this device, a phone's setup, what notifies, machine alerts
 import { $, api, esc, emit, on, store, toast, debounce } from './util.js';
 import { enterProject, loadComments, loadGit, projectOf, setSetting, state, where } from './state.js';
 import { icon } from './icons.js';
@@ -17,6 +18,7 @@ import { renderInbox, renderDecisions } from './inbox.js';
 import { showSet, leaveSet, setChanged } from './q/page.js';
 import { showReview, leaveReview, reviewChanged } from './r/page.js';
 import { showMachine, leaveMachine, machineEvent } from './machine/page.js';
+import { showNotify, leaveNotify, listenForTaps, notifySummary } from './notify.js';
 import './grow.js';
 
 function applyTheme() {
@@ -30,6 +32,7 @@ function parse() {
   const h = location.hash.slice(1) || '/';
   const [p, qs = ''] = h.split('?');
   const parts = p.split('/').filter(Boolean).map((x) => decodeURIComponent(x));
+  if (parts[0] === 'notify') return { page: 'notify', key: '' };
   if (parts[0] === 'machine') return { page: 'machine', key: '', range: new URLSearchParams(qs).get('r') || '', session: parts[1] === 's' ? parts[2] || '' : '', chat: parts[1] === 's' && (parts[3] === 'c' || parts[3] === 'a') ? parts[3] : '', agent: parts[3] === 'a' ? parts[4] || '' : '', id: parts[2] || '' };
   if (parts[0] !== 'p' || !parts[1]) return { page: 'inbox', key: '' };
   const key = parts[1];
@@ -110,6 +113,7 @@ async function draw() {
     if (r.page !== 'questions') leaveSet();
     if (r.page !== 'review') leaveReview();
     if (r.page !== 'machine') leaveMachine();
+    if (r.page !== 'notify') leaveNotify();
     current = r;
     document.body.dataset.view = r.page;
     paintChrome();
@@ -140,6 +144,9 @@ async function draw() {
         break;
       case 'machine':
         await showMachine(main, r);
+        break;
+      case 'notify':
+        await showNotify(main);
         break;
     }
     if (fresh && lastPage !== JSON.stringify([r.page, r.key, r.id, r.session, r.chat, r.agent])) scrollTo(0, 0);
@@ -176,6 +183,7 @@ function paintChrome() {
   $('search-form').hidden = !filesView;
   $('qo-btn').hidden = !filesView;
   $('machine-btn').classList.toggle('on', current.page === 'machine');
+  $('notify-btn').classList.toggle('on', current.page === 'notify');
   paintCounts();
   if (p) paintBar();
 }
@@ -262,8 +270,9 @@ async function settingsPanel() {
   <label>Your name on notes <input data-s="author" placeholder="${esc(state.info.author || '')}" value="${esc(s.author)}"></label>
   ${p ? `<h3>Claude Code in ${esc(p.name)}</h3><div id="hooks-box" class="faint small">…</div>` : ''}
   <h3>This computer</h3><div id="machine-box" class="faint small">…</div>
+  <h3>Notifications</h3><p class="faint small"><span id="notify-box">…</span> <a href="#/notify">Set them up</a></p>
   <h3>On your phone</h3>
-  <p class="faint small">Open this page on your phone (the same Wi-Fi or Tailscale) and add it to your home screen. For notifications when an agent asks something: <code>npx hitloop notify ntfy</code>.</p>
+  <p class="faint small">Open this page on your phone (the same Wi-Fi or Tailscale) and add it to your home screen. For notifications there, see <a href="#/notify">Notifications</a> (it needs https, which hitl can do itself).</p>
   <h3>Shortcuts</h3>
   <dl class="keys"><dt><kbd>Ctrl</kbd> <kbd>P</kbd></dt><dd>Go to a file</dd><dt><kbd>/</kbd></dt><dd>Search in files</dd><dt><kbd>Esc</kbd></dt><dd>Close the file</dd><dt><kbd>[</kbd> <kbd>]</kbd></dt><dd>Previous / next file</dd><dt><kbd>Shift</kbd>-click</dt><dd>A range of lines</dd><dt><kbd>Ctrl</kbd> <kbd>Enter</kbd></dt><dd>Send a note or comment</dd><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>One at a time: previous / next</dd></dl>
   <p class="faint">hitl ${esc(state.hub.version || '')} — Human In The Loop${state.info.root ? ' · ' + esc(state.info.root) : ''}</p>`;
@@ -280,6 +289,9 @@ async function settingsPanel() {
   }
   if (p) paintHooks(pop.querySelector('#hooks-box'));
   paintMachineSetting(pop.querySelector('#machine-box'));
+  notifySummary()
+    .then((t) => (pop.querySelector('#notify-box').textContent = t))
+    .catch((e) => (pop.querySelector('#notify-box').textContent = e.message));
   setTimeout(() => {
     const away = (e) => {
       if (!pop.contains(e.target) && !e.target.closest('#settings-btn')) {
@@ -407,6 +419,8 @@ async function boot() {
   if (state.hub.mode === 'solo' && state.hub.projects[0] && (!location.hash || location.hash === '#/')) history.replaceState(null, '', `#/p/${encodeURIComponent(state.hub.projects[0].key)}`);
   $('settings-btn').innerHTML = icon('settings');
   $('machine-btn').innerHTML = icon('monitor');
+  $('notify-btn').innerHTML = icon('bell');
+  listenForTaps();
   $('proj-caret').innerHTML = icon('chevron-down', 14);
   const tabIcons = { inbox: 'home', files: 'folder', changes: 'diff', notes: 'chat', decisions: 'check' };
   for (const a of $('tabs').querySelectorAll('[data-tab]')) a.querySelector('.tab-ic').innerHTML = icon(tabIcons[a.dataset.tab], 18);

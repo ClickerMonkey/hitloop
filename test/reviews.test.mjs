@@ -612,35 +612,3 @@ test('the CLI: show, news, approve with a timeout, hooks, the stop gate', () => 
   assert.match(run('hooks'), /News hook: on\nStop hook: off/);
   assert.match(run('decisions', 'table'), /refused \("Never"\)/);
 });
-
-test('the CLI: import brings in .questionme/ and .review/ folders', () => {
-  const proot = path.join(tmp, 'old');
-  const w = (p, t) => {
-    fs.mkdirSync(path.dirname(path.join(proot, p)), { recursive: true });
-    fs.writeFileSync(path.join(proot, p), typeof t === 'string' ? t : JSON.stringify(t, null, 2));
-  };
-  w('src/a.ts', 'export const a = 1;\n');
-  w('.questionme/sets/plan.json', { title: 'Old plan', questions: [{ id: 'name', question: 'Name?', type: 'text' }] });
-  w('.questionme/answers/plan.json', { version: 1, seq: 1, readSeq: 0, answers: { name: { status: 'answered', text: 'Hitl', rev: '', at: '2026-01-01T00:00:00Z', seq: 1 } }, threads: {} });
-  w('.review/comments.json', { comments: [{ id: 'ab12cd34', path: 'src/a.ts', line: 1, body: 'Old comment', author: 'Phil', status: 'open', createdAt: '2026-01-01T00:00:00Z', quote: 'export const a = 1;' }] });
-  w('.review/images/ab12cd34.png', 'png');
-  const run = (...a) => execFileSync(process.execPath, [cli, ...a], { cwd: proot, env: env(), encoding: 'utf8' });
-  const out = run('import');
-  assert.match(out, /1 note from \.review\/comments\.json/);
-  assert.match(out, /✓ Imported/);
-  assert.ok(fs.existsSync(path.join(proot, '.hitl/questions/plan.json')));
-  assert.ok(fs.existsSync(path.join(proot, '.hitl/answers/plan.json')));
-  assert.ok(fs.existsSync(path.join(proot, '.hitl/notes/images/ab12cd34.png')));
-  const p = openProject(proot);
-  assert.equal(p.questions.answers('plan').answers.name.text, 'Hitl');
-  assert.equal(p.notes.all()[0].body, 'Old comment');
-  assert.match(run('status'), /plan \("Old plan"\): 1 of 1 answered[\s\S]*Notes from the human: 1 open of 1/);
-  assert.match(run('notes', '--open'), /note ab12cd34 on src\/a\.ts:1: "Old comment"/);
-  // again: nothing doubles
-  const twice = run('import');
-  assert.match(twice, /skipped \.hitl[\\/]questions[\\/]plan\.json/);
-  assert.match(twice, /0 notes from/);
-  assert.equal(openProject(proot).notes.all().length, 1);
-  // the hub registry is in HITL_HOME, never the real one
-  assert.ok(JSON.parse(fs.readFileSync(path.join(home, 'projects.json'), 'utf8')).projects.some((x) => path.resolve(x.root) === path.resolve(proot)));
-});

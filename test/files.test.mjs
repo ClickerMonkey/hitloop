@@ -1,4 +1,4 @@
-// Files (folderview's part of hitl): paths, filters, git, search, the human's notes, and the page's file routes under
+// Files: paths, filters, git, search, the human's notes, and the page's file routes under
 // p/<key>/. Runs against the built dist/ (npm test builds first).
 import { test as nodeTest, before, after } from 'node:test';
 import assert from 'node:assert/strict';

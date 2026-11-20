@@ -1,4 +1,4 @@
-// Glob patterns in the .gitignore style, used for excludes (--exclude, FOLDERVIEW_EXCLUDE, .folderviewignore, config)
+// Glob patterns in the .gitignore style, used for excludes (--exclude, .hitlignore, config)
 // and for search's "files to include".
 //
 //   *.log        a name anywhere

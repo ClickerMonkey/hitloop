@@ -21,11 +21,6 @@ npx hitloop          # the page, for every project, with links for your phone
 "Human in the loop" means a person stays part of what an automated system does: it checks with them, they decide,
 and it carries on. hitl gives that person somewhere to do it, instead of a chat scrolling past.
 
-It grew from two smaller tools, and does everything both did:
-
-- [questionme](https://github.com/ClickerMonkey/questionme): an agent's questions, answered on your phone.
-- [folderview](https://github.com/ClickerMonkey/folderview): browse, search and comment on any folder, with git.
-
 ## What you can do
 
 | | |
@@ -36,11 +31,11 @@ It grew from two smaller tools, and does everything both did:
 | **One at a time** | Swipe through a review: right for looks good, left for needs changes. Good for thirty screenshots. |
 | **Before and after** | Pictures with a slider (or side by side); code and text as after, before, and the changes between them. |
 | **Approve** | An agent asks "Deploy 2.4.0 to production?" and waits. You get a notification, read what it will do, and tap **Approve** or **Refuse**. |
-| **Browse the files** | Everything folderview does: highlighted code, rendered markdown with Mermaid and math, images, CSV, JSON, notebooks, git status, diffs and history, search, downloads. Big files and big folders open quickly. |
+| **Browse the files** | Highlighted code, rendered markdown with Mermaid and math, images, CSV, JSON, notebooks, git status, diffs and history, search, downloads. Big files and big folders open quickly. |
 | **Notes for the agent** | Write on any file, line or picture area, or about anything, with photos from your phone. The agent picks them up and resolves each with a reply. |
 | **Decisions** | Everything you answered, approved or gave a verdict on, searchable. Agents check it before asking again. |
 | **Who's asking** | Each request says which agent session or branch made it. |
-| **Notifications** | Your phone buzzes when an agent asks, shows or waits (ntfy or a webhook). Approvals go out at once. |
+| **Notifications** | Your phone or computer buzzes when an agent asks, shows or waits, when a Claude Code session finishes, or when this computer crosses a line you set (Web Push, straight from the hub; https for phones built in). Approvals go out at once. |
 
 It works on phones (sections along the bottom, big touch targets, the page scrolls), tablets and desktops (the file
 tree, the folder and the file side by side).
@@ -58,7 +53,7 @@ a short section to the project's `CLAUDE.md` (or `AGENTS.md`) on when to use it.
 | `wait` | Block until the human says something (`any`), finishes (`done`), answers everything (`all`), or answers the blocking questions. Up to 15 minutes; for longer, run `npx hitloop wait` in the background. |
 | `show` | Put files, code, text, diffs, pictures, diagrams, mockups or links in front of the human. `mode: "review"` asks a verdict per item; `"show"` is just to look. Each call makes its own review. |
 | `approve` | Ask yes or no before doing something, and wait for it. Returns APPROVED, REFUSED or "not yet" with their note. |
-| `add_questions` | Questions in a set (questionme's format): options, a recommendation, why it matters, follow-ups that open on an answer. |
+| `add_questions` | Questions in a set: options, a recommendation, why it matters, follow-ups that open on an answer. |
 | `get_feedback`, `get_answers`, `notes` | One review's feedback, one set's answers, the notes. |
 | `ack`, `resolve`, `reply` | Mark answers and verdicts as dealt with, resolve comments and notes saying what you did, write back. |
 | `decisions` | What the human decided before. |
@@ -112,9 +107,6 @@ Every request is its own file, and a new review always gets a fresh id, so one a
 another's. Every write is locked and atomic, so the page, the MCP server and the CLI can all write at once.
 Formats: `npx hitloop schema questions`, `npx hitloop schema reviews` (or `schema/` in the package).
 
-`npx hitloop import` brings in a project's `.questionme/` (questions and answers) and `.review/` (folderview's comments,
-as notes).
-
 ### A review
 
 ```json
@@ -162,28 +154,65 @@ npx hitloop --solo [folder]       # just this folder, on its own server
 | `--no-token` | | | Anyone on your network can open it. |
 | `--allow-host <h>` | | | Accept this host name too (a tunnel's). |
 | `-x, --exclude <globs>` | | | Never show, serve, search or zip these. Also `.hitlignore` in a project. |
-| `--hide <names>`, `--show-secrets`, `--max-file-mb <n>`, `--no-git`, `--no-watch`, `--author <name>` | | | File browsing, as in folderview. |
+| `--hide <names>`, `--show-secrets`, `--max-file-mb <n>`, `--no-git`, `--no-watch`, `--author <name>` | | | File browsing. |
 | `-o, --open` | | | Open it in your browser. |
 | `--read-only` | | | Look, don't answer. |
 
-Settings can also go in `~/.config/hitl/config.json` (`port`, `host`, `base`, `token`, `allowHosts`, `notify`,
+Settings can also go in `~/.config/hitl/config.json` (`port`, `host`, `base`, `token`, `allowHosts`, `https`, `notify`,
 `exclude`, `hide`, `showSecrets`, `maxFileMb`, `git`, `watch`). `HITL_HOME` moves that folder.
 
 The links include every address your phone might use: your Wi-Fi or LAN address, and a Tailscale address if you have
 one. Add the page to your phone's home screen and it opens like an app.
 
-## Notifications on your phone
+## Notifications
+
+Tap the bell at the top (`#/notify`) and **Turn on notifications**. They come straight from the hub to the browser
+(Web Push), encrypted so only that device can read them. Nothing to install, no account.
+
+- **On this computer** it works at once: `http://localhost:4199` counts as a secure page.
+- **On a phone** a browser only offers notifications on https pages. Tick **Answer https on this port too** (or run
+  `npx hitloop https on`): the hub then answers http and https on the same port, with a certificate from its own
+  certificate authority. The phone installs that authority once (the page walks you through it for Android, iPhone and
+  other computers, and checks whether the phone trusts it yet), then opens the `https://` address and turns
+  notifications on. On an iPhone or iPad, add the page to the home screen first (iOS 16.4 or later). The authority is
+  made on this computer and never leaves it, and it can only vouch for local addresses (localhost, 10.x, 172.16–31.x,
+  192.168.x, 100.64–127.x, this computer's name), never for another website.
+
+**Slack**: paste an incoming webhook (in Slack: Apps → Incoming Webhooks → Add to Slack, pick a channel) on the
+Notifications page or run `npx hitloop notify slack <url>`. Each notification posts to that channel with a button that
+opens hitl. Only `hooks.slack.com` addresses are accepted, and the page shows the address masked.
+
+Pick what notifies:
+
+| Event | On at first |
+| --- | --- |
+| New questions; waiting for your OK (approvals); something to review; something to look at | yes |
+| Replies from the agent (on your answers, comments and notes) | yes |
+| The agent acted on your answers (ack); resolved your notes; changed what it asked | no |
+| A Claude Code session finished (worked for a while, now waits for you); a workflow finished (with the machine dashboard on) | no |
+| Machine alerts | yes |
+
+Questions and reviews are batched (one notification once the agent has been quiet for 20 seconds); approvals go out
+within a couple of seconds. Notifications say what's waiting, never your answers.
+
+**Machine alerts** (with the machine dashboard on): a notification when a reading stays past a line for a while (CPU,
+memory, GPU use, temperature, memory and power, free disk space, disk and network speed, the CPU and memory of all
+`claude` or `node` processes, Claude Code sessions open or working), or when a total over a window does (estimated
+token cost, tokens, output tokens, tool calls, tool errors, model turns, prompts). For example "GPU temperature above
+85 °C for 2 minutes" or "Token cost above $20 in 1 hour". Each rule then stays quiet for 30 minutes.
 
 ```sh
-npx hitloop notify ntfy             # makes a private ntfy topic, saves it, and sends a test
-npx hitloop notify webhook <url>    # or POST JSON anywhere: Pushover, Discord, Home Assistant, …
-npx hitloop notify link http://100.100.4.74:4199   # where the tap should open
+npx hitloop https on | off | status   # https on the hub's port too (no restart needed)
+npx hitloop https trust               # trust the certificate on this computer (not needed for localhost)
+npx hitloop https reset               # a new certificate authority (every phone installs it again)
+npx hitloop notify                    # what's on, and the devices that get push
+npx hitloop notify events [<event> on|off]
+npx hitloop notify slack <url>        # also post each one to a Slack channel (an incoming webhook); slack off
+npx hitloop notify webhook <url>      # also POST each notification as JSON: Pushover, Discord, Home Assistant, …
+npx hitloop notify link <url>         # where a webhook's link should open
+npx hitloop notify push on|off        # pause push for every device
 npx hitloop notify test | off
 ```
-
-Install the [ntfy app](https://ntfy.sh) and subscribe to the topic it prints. Questions and reviews are batched (one
-notification once the agent has been quiet for 20 seconds); approvals go out within a couple of seconds, at high
-priority. Notifications say what's waiting, never your answers.
 
 ## This computer (optional)
 

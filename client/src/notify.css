@@ -1,0 +1,192 @@
+/* Notifications (#/notify): this device, a phone's setup, what notifies, machine alerts. */
+#nf-body {
+  display: grid;
+  gap: var(--space-5);
+}
+.nf-card {
+  overflow: visible;
+}
+.nf-card .card-head {
+  font-size: var(--text-sm);
+  color: var(--text);
+  background: linear-gradient(90deg, var(--accent-soft), transparent 70%);
+}
+.nf-pad {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  display: grid;
+  gap: var(--space-3);
+}
+.nf-pad p {
+  margin: 0;
+}
+.nf-state {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--weight-medium);
+}
+.nf-state.on {
+  color: var(--ok);
+}
+.nf-state.off {
+  color: var(--warn);
+}
+.nf-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.nf-steps {
+  margin: 0;
+  padding-left: 1.4em;
+  display: grid;
+  gap: var(--space-2);
+  line-height: 1.5;
+}
+.nf-how {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+}
+.nf-how summary {
+  cursor: pointer;
+  font-weight: var(--weight-medium);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.nf-how[open] summary {
+  margin-bottom: var(--space-2);
+}
+.nf-fp {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.nf-events {
+  display: grid;
+  margin-top: -1px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+.nf-event {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  cursor: pointer;
+}
+.nf-event:hover {
+  background: var(--surface-2);
+}
+.nf-event input {
+  accent-color: var(--accent);
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  flex: none;
+}
+.nf-event > span {
+  display: grid;
+  gap: 2px;
+}
+.nf-foot {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.nf-pad label.check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--weight-medium);
+}
+.nf-pad label.check input {
+  accent-color: var(--accent);
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.nf-devices,
+.nf-rules {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.nf-devices li,
+.nf-rules li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.nf-devices li > span:first-child,
+.nf-rules li > label {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.nf-row-acts {
+  display: flex;
+  gap: var(--space-3);
+}
+.link-btn.danger {
+  color: var(--danger);
+}
+.nf-new {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.nf-new select,
+.nf-new input {
+  height: 34px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.nf-new select:first-child {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.nf-num {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+.nf-num input {
+  width: 6.5em;
+}
+.nf-new .btn {
+  height: 34px;
+}
+@media (max-width: 759px) {
+  #nf-body {
+    gap: var(--space-4);
+  }
+  .nf-pad {
+    padding: var(--space-3);
+  }
+  .nf-event {
+    padding: var(--space-3);
+  }
+}
+.nf-slack {
+  display: grid;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.nf-slack input {
+  flex: 1 1 280px;
+  min-width: 0;
+}

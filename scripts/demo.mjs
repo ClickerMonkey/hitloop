@@ -1,5 +1,5 @@
-// Makes a demo project that uses everything hitl does: a git repository with changes (folderview's Trailhead), a
-// question set (questionme's weather plan), reviews with every kind of item, something just to look at, an approval
+// Makes a demo project that uses everything hitl does: a git repository with changes (Trailhead), a
+// question set (a weather plan), reviews with every kind of item, something just to look at, an approval
 // waiting, notes on files with the agent's replies, and some feedback already given.
 //   node scripts/demo.mjs <folder>          (needs a build: npm run build)
 //   HITL_HOME=<folder>/.home node dist/cli.js --solo <folder> --local

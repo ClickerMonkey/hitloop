@@ -4,14 +4,14 @@ One tool where an AI agent and its human meet: the agent **asks** (questions), *
 and **asks for review** (approve or change); the human **answers, reviews, marks up and explores** the project's files,
 on any device, and sends **notes** back. Everything the human says lands in one feed the agent reads a little at a time.
 
-It merges [folderview](https://github.com/ClickerMonkey/folderview) (browse, search, git, review comments) and
-[questionme](https://github.com/ClickerMonkey/questionme) (question sets, answered on a phone, MCP + CLI), copying as
-much of their code as possible, and adds showings and reviews.
+It covers browsing a project (search, git, notes on files), question sets answered on a phone (MCP + CLI), showings
+and reviews.
 
 ## Decisions (Phil, 2026-11-14)
 
 - Name: `hitl` on npm. The repo and README say plainly: **Human In The Loop**.
-- All folderview features. All questionme features, with text inputs that grow and wrap (no long single-line boxes).
+- Full file browsing (search, git, notes) and full question sets, with text inputs that grow and wrap (no long
+  single-line boxes).
 - Explicit "review this": the agent shows things and asks for a verdict.
 - Works well on phones, tablets and desktops. A more cohesive UX than the two tools side by side.
 - File viewing performance is handled (big files, big folders).
@@ -21,8 +21,6 @@ much of their code as possible, and adds showings and reviews.
   (5) snapshots, (6) swipe review, (7) before/after, (8) performance, (9) a decision log, (11) who's asking,
   push notifications to the phone.
 - (12) Claude Code hooks are an option the user turns on (`hitl init --hook`, `--stop-hook`), not the default.
-- questionme and folderview stay published; their READMEs point to hitl. `hitl import` brings in `.questionme/` and
-  `.review/` folders.
 
 ## Decisions: the machine dashboard (Phil, 2026-11-19)
 
@@ -59,11 +57,41 @@ newest first; click any agent or the main conversation to read it (messages, thi
 durations, every picture it read) at `#/machine/s/<session>/c` and `/a/<agent>`, backed by `api/machine/transcript` and
 `api/machine/transcript-image`.
 
+## Decisions: notifications and https (Phil, 2026-11-20)
+
+Phil's requests:
+
+- "For the hitloop project how can we get it to work with https so we can get push notifications?" then "Assume no
+  tailscale, just localhost or localip", and on the options: "Let's do option A so localip and localhost can server
+  https so whether I'm using it on my machine only or for a phone I can get push notifications. Let's add push
+  notifications for all the things AI can do with options to toggle it. Also for machine mode, maybe when certain
+  thresholds are met absolutely or within a timeframe for any of the metrics we track we could get notifications."
+- "Lets remove all traces of ntfy - I don't want that anymore"
+- "Also remove references to questionme and folderview from the project" (the import command and .folderviewignore went too)
+- "lets also add slack integration support - so user could supply slackwebhook for notifications"
+
+Built:
+
+- **https** (`src/hub/tls.ts`): hitl's own certificate authority (P-256, ten years, name-constrained to private
+  addresses, localhost and this computer's name) issues the hub a certificate for every local address, made again when
+  an address changes. One port answers both http and https (the first byte of a connection says which); `https` in
+  config.json (`hitl https on|off`, or the page) turns it on with no restart. The CA is downloadable at `hitl-ca.crt`;
+  the page walks Android, iPhone and other computers through installing it and checks whether a device trusts it.
+- **Web Push** (`src/hub/webpush.ts`): VAPID (RFC 8292) and aes128gcm (RFC 8291) by hand, no dependencies; keys and
+  devices in `~/.config/hitl/push.json`; `client/sw.js` shows them and opens the page at the right place.
+- **Events** (`EVENTS` in `src/hub/notify.ts`), each on or off: questions, approvals, reviews, showings, replies (on);
+  acks, resolved notes, edits (off); a Claude Code session finished, a workflow finished (off; need the dashboard);
+  machine alerts (on). ntfy removed; a webhook stays.
+- **Slack**: an incoming webhook (`notify.slack`, only hooks.slack.com accepted), set on the page or with
+  `hitl notify slack <url>`; each notification is a Block Kit message (bold title, details, an "Open in hitl" button).
+- **Machine alerts** (`src/machine/alerts.ts`): rules on any level (held N minutes, 0 = at once) or any total over a
+  window, with a cooldown; in config.json `machine.alerts`, edited on the Notifications page (`#/notify`).
+
 ## Shape
 
 ```
 <project>/.hitl/
-  questions/<set>.json     question sets (questionme's format)          agent writes
+  questions/<set>.json     question sets                                agent writes
   shows/<id>.json          showings and review requests                 agent writes
   approvals/<id>.json      approval gates (one question, yes/no)        agent writes
   answers/<id>.json        everything the human said about one request  hitl writes
@@ -75,20 +103,20 @@ durations, every picture it read) at `#/machine/s/<session>/c` and `/a/<agent>`,
 ```
 
 - **One hub** (`npx hitloop`) serves every project on one port (4199), with a token, on the LAN and Tailscale.
-- **The page**: an Inbox across projects ("waiting on you"); each project has Files (folderview), Questions,
-  Reviews (showings), Notes, Changes, Decisions. One look (folderview's design tokens), one top bar, one settings
+- **The page**: an Inbox across projects ("waiting on you"); each project has Files, Questions,
+  Reviews (showings), Notes, Changes, Decisions. One look (one set of design tokens), one top bar, one settings
   panel.
 - **The agent**: one MCP server (`hitl mcp`) and a CLI with the same verbs: `ask`, `show`, `review`, `approve`,
   `news`, `wait`, `reply`, `ack`/`resolve`, `decisions`, `link`. `hitl news` is one stream across every request.
 - **Who's asking**: every request records `from` (the agent's session name, the git branch, or what it passes).
-- **Notifications**: ntfy or a webhook, batched (from questionme), for new questions, reviews, approvals and replies.
+- **Notifications**: Web Push straight from the hub (https built in for phones) or a webhook, batched, for new questions, reviews, approvals and replies (see Decisions: notifications).
 
 ## Phases
 
-1. Skeleton: repo, package, build, the hub serving folderview per project under `p/<key>/`.
-2. Questions: questionme's store, API, pages and MCP tools, moved over.
+1. Skeleton: repo, package, build, the hub serving each project's files under `p/<key>/`.
+2. Questions: the store, API, pages and MCP tools.
 3. Shows and reviews: the format, the page (items, verdicts, line comments, picture marks, swipe), the tools.
 4. Notes, approvals, the news stream, wait, decisions, who's asking.
 5. One page: the inbox, project home, shared top bar and settings; inputs that grow; phone, tablet and desktop passes.
 6. Performance: windowed code view, highlighting off the main thread, cached listings.
-7. Import, hooks (optional), notifications, README, screenshots, tests, release workflow.
+7. Hooks (optional), notifications, README, screenshots, tests, release workflow.

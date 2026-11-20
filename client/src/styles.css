@@ -1,5 +1,6 @@
-/* hitl's look: folderview's (the files, and the design tokens everything uses), questionme's question sets, then hitl's own. */
+/* hitl's look: the files (and the design tokens everything uses), the question sets, then hitl's own parts. */
 @import './app.css';
 @import './questions.css';
 @import './hitl.css';
 @import './machine.css';
+@import './notify.css';

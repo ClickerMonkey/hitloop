@@ -1,6 +1,6 @@
 // Notes from the human to the agent: on a file, on lines of it, on an area of a picture, or on nothing in particular
 // ("look at the login flow"), with photos if they like. Kept in .hitl/notes/notes.json, with NOTES.md beside it
-// written for an agent to work through. (These are folderview's review comments, grown up.)
+// written for an agent to work through.
 //
 // Several processes write here (the page through the hub, an agent through the MCP server or the CLI), so every change
 // re-reads the file under a lock, changes it, and writes it back atomically. Each change gets a number (seq), so an

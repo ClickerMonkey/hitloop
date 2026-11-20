@@ -12,6 +12,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { writeAtomic, withLock } from './atomic.js';
 import type { NotifyConfig } from './notify.js';
+import type { AlertRule } from '../machine/alerts.js';
 
 export function configDir(env: NodeJS.ProcessEnv = process.env): string {
   if (env['HITL_HOME']) return path.resolve(env['HITL_HOME']);
@@ -106,6 +107,8 @@ export interface UserConfig {
   git?: boolean;
   watch?: boolean;
   readOnly?: boolean;
+  /** answer https on the hub's port too, with hitl's own certificate (hitl https on|off; default off) */
+  https?: boolean;
   /** the machine dashboard (hitl machine): off unless on */
   machine?: MachineConfig;
 }
@@ -114,6 +117,8 @@ export interface MachineConfig {
   on?: boolean;
   /** "resume" (paused until you resume) or the time the pause ends (ISO) */
   paused?: string;
+  /** notifications when a reading crosses a line (machine alerts) */
+  alerts?: AlertRule[];
 }
 
 export function userConfigPath(): string {
@@ -254,12 +259,14 @@ export function lanAddresses(): string[] {
 }
 
 /** Links to a page: this computer first, then every address other devices can use. */
-export function links(port: number, host: string, token: string, hash = '', base = '/'): string[] {
+export function links(port: number, host: string, token: string, hash = '', base = '/', https = !!userConfig().https): string[] {
   const q = token ? `?token=${encodeURIComponent(token)}` : '';
   const everywhere = host === '0.0.0.0' || host === '::';
   const local = everywhere || host === '127.0.0.1' || host === '::1' ? 'localhost' : host;
   const out = [`http://${local}:${port}${base}${q}${hash}`];
   if (everywhere) for (const ip of lanAddresses()) out.push(`http://${ip}:${port}${base}${q}${hash}`);
+  // https on the same port, for devices that installed hitl's certificate (notifications need it off this computer)
+  if (https && everywhere) for (const ip of lanAddresses()) out.push(`https://${ip}:${port}${base}${q}${hash}`);
   return out;
 }
 

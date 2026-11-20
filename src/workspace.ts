@@ -1,4 +1,4 @@
-// One project the hub serves: its files (folderview's browsing, search, git and downloads), the human's notes on
+// One project the hub serves: its files (browsing, search, git and downloads), the human's notes on
 // them, and the agent's question sets and reviews. Every route here is under p/<key>/.
 //
 // Watching a whole folder tree costs something, and a hub may serve dozens of projects, so a project's files are only
@@ -291,7 +291,7 @@ export class Workspace {
     }
     if (p === '/api/decisions') return json(res, 200, decisions(this, { q: q('q'), limit: Number(q('limit')) || 200 }));
 
-    // notes (folderview's comments): /api/comments…
+    // notes: /api/comments…
     if (p === '/api/notes.md') return text(res, fs.existsSync(this.notes.mdPath) ? fs.readFileSync(this.notes.mdPath, 'utf8') : 'No notes yet.\n', 'text/markdown; charset=utf-8');
     if (p.startsWith('/api/comments')) return this.notesRoute(p, method, q, req, res);
     if (p.startsWith('/api/q/')) return this.questionsRoute(p.slice(7), method, req, res);
@@ -599,10 +599,10 @@ function sha1(abs: string): string {
   }
 }
 
-/** .hitlignore (and folderview's .folderviewignore): one pattern per line, # for comments */
+/** .hitlignore: one pattern per line, # for comments */
 function readIgnore(root: string): string[] {
   const out: string[] = [];
-  for (const f of ['.hitlignore', '.folderviewignore']) {
+  for (const f of ['.hitlignore']) {
     try {
       out.push(...fs.readFileSync(path.join(root, f), 'utf8').split(/\r?\n/));
     } catch {

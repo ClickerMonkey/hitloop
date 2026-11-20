@@ -11,7 +11,9 @@ const watch = process.argv.includes('--watch');
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(path.join(out, 'assets'), { recursive: true });
 fs.copyFileSync(path.join(root, 'client', 'index.html'), path.join(out, 'index.html'));
-fs.copyFileSync(path.join(root, 'client', 'icon.svg'), path.join(out, 'assets', 'icon.svg'));
+for (const f of ['icon.svg', 'icon-192.png', 'icon-512.png', 'badge-96.png']) fs.copyFileSync(path.join(root, 'client', f), path.join(out, 'assets', f));
+// the service worker (push notifications) sits beside the page, so its scope is the whole page
+fs.copyFileSync(path.join(root, 'client', 'sw.js'), path.join(out, 'sw.js'));
 
 const options = {
   entryPoints: { main: path.join(root, 'client', 'src', 'main.js'), app: path.join(root, 'client', 'src', 'styles.css') },

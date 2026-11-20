@@ -740,7 +740,7 @@ export function compactLine(q: Question | undefined, id: string, a: Answer, hidd
 export function answersMarkdown(set: QSet, af: AnswerFile): string {
   const vis = visibility(set, af.answers);
   const s = summarise(set, af);
-  const out = [`# ${set.title}: answers`, '', `${s.done} of ${s.visible} answered${s.blocking ? `, ${s.blocking} blocking still open` : ''}. Written by questionme; the answers themselves are in the .json next to this file.`, ''];
+  const out = [`# ${set.title}: answers`, '', `${s.done} of ${s.visible} answered${s.blocking ? `, ${s.blocking} blocking still open` : ''}. Written by hitl; the answers themselves are in the .json next to this file.`, ''];
   for (const sec of set.sections) {
     const rows = sec.questions.filter((q) => af.answers[q.id] || af.threads[q.id]?.length);
     if (!rows.length) continue;

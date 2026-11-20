@@ -1,4 +1,4 @@
-// A question set (from questionme): every question as a list, or as cards (one per screen). Answers save as you go; when
+// A question set: every question as a list, or as cards (one per screen). Answers save as you go; when
 // an agent adds questions or replies, or you answer on another device, it updates live. The shell mounts this view.
 import { $, api, esc, store, toast, copy, debounce, ago } from '../util.js';
 import { state, projectOf } from '../state.js';

@@ -1202,7 +1202,7 @@
               <h3>A real yes or no before anything risky</h3>
               <p>The agent wants to deploy, delete data or send something. It asks, you get a notification (on your desktop or your phone), you read what will happen and how to undo it, and tap <b>Approve</b> or <b>Refuse</b>. It waits until you do.</p>
               <ul class="points">
-                <li>A notification within seconds (ntfy or any webhook)</li>
+                <li>A notification within seconds, straight from the hub to your browser or phone</li>
                 <li><code>hitl approve</code> exits 0 or 1, so scripts can gate on you too</li>
                 <li>An optional hook stops Claude finishing while an approval waits</li>
               </ul>
@@ -1306,9 +1306,8 @@
             <div class="cmds">
               <div class="cmd"><code>npx hitloop init</code><button class="copy" data-copy="npx hitloop init" aria-label="Copy">⧉</button><p>Once per project: the <code>.hitl</code> folder, the MCP server for Claude Code, a note in CLAUDE.md.</p></div>
               <div class="cmd"><code>npx hitloop</code><button class="copy" data-copy="npx hitloop" aria-label="Copy">⧉</button><p>Start the page for every project. It prints links for this computer and your phone (LAN and Tailscale).</p></div>
-              <div class="cmd"><code>npx hitloop notify ntfy</code><button class="copy" data-copy="npx hitloop notify ntfy" aria-label="Copy">⧉</button><p>Notifications on your phone or desktop, through the free ntfy app. Or <code>notify webhook &lt;url&gt;</code>.</p></div>
+              <div class="cmd"><code>npx hitloop https on</code><button class="copy" data-copy="npx hitloop https on" aria-label="Copy">⧉</button><p>Notifications on your phone: https with hitl's own certificate. Then tap the bell in the page and turn them on (on this computer that works without it).</p></div>
               <div class="cmd"><code>npx hitloop hooks on --stop</code><button class="copy" data-copy="npx hitloop hooks on --stop" aria-label="Copy">⧉</button><p>Optional: don't let Claude finish while an approval or a blocking question waits.</p></div>
-              <div class="cmd"><code>npx hitloop import</code><button class="copy" data-copy="npx hitloop import" aria-label="Copy">⧉</button><p>Coming from questionme or folderview? Brings in <code>.questionme/</code> and <code>.review/</code>.</p></div>
             </div>
           </div>
           <div class="panel" data-panel="cli" hidden>
@@ -1390,7 +1389,6 @@
           <a href="https://github.com/ClickerMonkey/hitloop">GitHub</a>
           <a href="https://www.npmjs.com/package/hitloop">npm</a>
           <a href="SKILL.md">SKILL.md</a>
-          <span>Replaces <a href="https://github.com/ClickerMonkey/questionme">questionme</a> &amp; <a href="https://github.com/ClickerMonkey/folderview">folderview</a></span>
         </div>
       </div>
     </footer>

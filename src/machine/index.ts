@@ -9,6 +9,8 @@
 //   GET  api/machine/claude?range=…  tokens, cost, models, projects, tools, sessions
 //   GET  api/machine/session/<id>    one session: its agents, workflows and context per turn
 //   GET  api/machine/workflow/<session>/<run>
+//   GET  api/machine/alerts          the alert rules, and every metric a rule can watch
+//   POST api/machine/alerts          { rules: [...] } replaces them
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -19,6 +21,19 @@ import { StoreError } from '../hub/atomic.js';
 import { Rrd } from './rrd.js';
 import { SystemSampler, type Snapshot } from './system.js';
 import { ClaudeReader, folderName } from './claude.js';
+import { Alerts, SessionWatch, METRICS, cleanRule, describe, type AlertRule } from './alerts.js';
+
+/** something on this computer worth a notification */
+export interface MachineEvent {
+  event: 'alert' | 'claudeIdle' | 'workflowDone';
+  title: string;
+  message: string;
+  /** where a tap goes on the hub's page */
+  hash: string;
+  /** notifications with the same tag replace each other */
+  tag: string;
+  urgent?: boolean;
+}
 
 export type PauseKind = '1h' | 'restart' | 'resume';
 
@@ -37,8 +52,14 @@ export class Machine {
   private timers: NodeJS.Timeout[] = [];
   private cfgStamp = '';
   private since = 0;
+  private alerts: Alerts | undefined;
+  private sessions = new SessionWatch();
+  private flows = new Map<string, string>();
 
-  constructor(private broadcast: (type: string, data: unknown) => void) {
+  constructor(
+    private broadcast: (type: string, data: unknown) => void,
+    private notify: (e: MachineEvent) => void = () => undefined,
+  ) {
     // the settings file can change under us (hitl machine on|off|pause): look now and then
     const t = setInterval(() => this.checkConfig(), 3000);
     t.unref();
@@ -87,9 +108,17 @@ export class Machine {
       (s) => {
         this.latest = s;
         if (Date.now() < this.watchedUntil) this.broadcast('machine', { kind: 'sample', sample: s });
+        this.watch(s);
       },
     );
     this.sys.start();
+    this.alerts = new Alerts(
+      () => this.rules(),
+      (n, sec) => rrd.total(n, sec),
+      (f) => this.notify({ event: 'alert', title: f.title, message: f.message, hash: '#/machine', tag: `alert-${f.rule.id}`, urgent: true }),
+    );
+    this.sessions = new SessionWatch();
+    this.flows.clear();
     this.claude = new ClaudeReader(rrd, path.join(dir, 'claude'), (what) => {
       if (Date.now() < this.watchedUntil) this.broadcast('machine', { kind: what });
     });
@@ -121,6 +150,50 @@ export class Machine {
     }
     this.rrd = undefined;
     this.broadcast('machine', { kind: 'state' });
+  }
+
+  /** each sample: the alert rules, sessions that finished working, workflows that finished */
+  private watch(s: Snapshot): void {
+    try {
+      const live = this.claude?.live ?? [];
+      this.alerts?.sample(s, live);
+      for (const { session, worked } of this.sessions.update(live, s.t)) {
+        const info = this.claude?.get(session.sessionId);
+        const name = session.name || info?.title || folderName(session.cwd);
+        this.notify({
+          event: 'claudeIdle',
+          title: `${name}: done, waiting for you`,
+          message: `Claude Code ${session.status === 'idle' ? 'finished' : `is now ${session.status}`} after ${Math.max(1, Math.round(worked / 60_000))} min of work.
+${info?.project || folderName(session.cwd)}`,
+          hash: `#/machine/s/${encodeURIComponent(session.sessionId)}/c`,
+          tag: `idle-${session.sessionId}`,
+        });
+      }
+      for (const l of live) {
+        const info = l.sessionId ? this.claude?.get(l.sessionId) : undefined;
+        for (const w of Object.values(info?.workflows ?? {})) {
+          const k = `${l.sessionId}/${w.runId}`;
+          const was = this.flows.get(k);
+          this.flows.set(k, w.status);
+          if (was === 'running' && w.status !== 'running')
+            this.notify({
+              event: 'workflowDone',
+              title: `Workflow ${w.name || w.runId} ${w.status === 'completed' ? 'finished' : w.status}`,
+              message: `${w.agentCount} agent${w.agentCount === 1 ? '' : 's'}, ${Math.max(1, Math.round(w.durationMs / 60_000))} min.
+${info?.title || l.name || folderName(l.cwd)}`,
+              hash: `#/machine/s/${encodeURIComponent(l.sessionId)}`,
+              tag: `wf-${w.runId}`,
+            });
+        }
+      }
+    } catch {
+      // a notification is never worth stopping the sampler for
+    }
+  }
+
+  rules(): AlertRule[] {
+    const r = this.config().alerts;
+    return Array.isArray(r) ? r : [];
   }
 
   close(): void {
@@ -213,6 +286,25 @@ export class Machine {
         };
       });
       return json(res, 200, { status: this.status(), sample: this.latest ?? null, live, running: this.claude?.running() ?? [] });
+    }
+    if (sub === '/alerts') {
+      if (method === 'POST') {
+        const b = await body(req);
+        if (!Array.isArray(b['rules'])) throw new StoreError('{ rules: [...] }');
+        const rules: AlertRule[] = [];
+        (b['rules'] as Partial<AlertRule>[]).slice(0, 100).forEach((r, i) => {
+          const c = cleanRule(r, `r${Date.now().toString(36)}${i}`);
+          if (typeof c === 'string') throw new StoreError(`rule ${i + 1}: ${c}`);
+          rules.push(c);
+        });
+        updateUserConfig((c) => ((c.machine ??= {}).alerts = rules));
+      }
+      return json(res, 200, {
+        rules: this.rules().map((r) => ({ ...r, text: describe(r) })),
+        metrics: METRICS.map(({ read: _r, series: _s, ...m }) => m),
+        have: this.sys?.have ?? null,
+        on: !!this.config().on,
+      });
     }
     const rng = Math.max(60, Math.min(2 * 365 * 86400, Number(url.searchParams.get('range')) || 3600));
     if (sub === '/series') {

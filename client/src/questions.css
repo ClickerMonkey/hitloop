@@ -1,6 +1,6 @@
-/* question sets (from questionme): the set page, cards, options, rings. The shell is in app.css. */
+/* question sets: the set page, cards, options, rings. The shell is in app.css. */
 /*
- * questionme's look: folderview's design tokens (from the harness web app), phone-first, with a little more colour.
+ * The shared design tokens (from the harness web app), phone-first, with a little more colour.
  * One spacing scale (4 · 8 · 12 · 16 · 24 · 32), one left edge inside every card, and a colour per section (--hue) so
  * you can tell where you are in a long set.
  */

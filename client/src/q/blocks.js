@@ -1,4 +1,4 @@
-// Content blocks: markdown, project files (drawn by kind, the way folderview draws them), code, diffs, diagrams,
+// Content blocks: markdown, project files (drawn by kind, the way the file view draws them), code, diffs, diagrams,
 // pictures, sandboxed HTML mockups and links. Heavy blocks (files, diagrams, mockups) draw when they scroll into view.
 import { api, baseOf, esc, extOf, parentOf, rawUrl } from '../util.js';
 import { state } from '../state.js';
