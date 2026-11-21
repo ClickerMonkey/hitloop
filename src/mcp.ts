@@ -6,7 +6,7 @@ import readline from 'node:readline';
 import { spawnSync } from 'node:child_process';
 import { StoreError } from './hub/atomic.js';
 import { describeSet, readAnswers, FILTERS, type Filter } from './q/agent.js';
-import { decisionsText, news, openProject, overviewText, readFeedback, readNotes, waitFor, REVIEW_FILTERS, WAITS, type ProjectView, type ReviewFilter, type WaitFor } from './agent.js';
+import { decisionsText, news, openProject, overviewText, readFeedback, readNotes, sendMessage, waitFor, REVIEW_FILTERS, WAITS, type ProjectView, type ReviewFilter, type WaitFor } from './agent.js';
 import { ensureHub, links, register, keyed, projects, runningHub } from './hub/registry.js';
 import { questionSchema, sectionSchema, blockSchema, conditionSchema } from './q/schema.js';
 import { itemSchema } from './r/schema.js';
@@ -19,6 +19,7 @@ export const INSTRUCTIONS = `hitl (Human In The Loop) puts things in front of th
 - you have more than about 4 questions, or questions that need thought or pictures: add_questions (one set per topic), each with options, one recommended, and why it matters; mark the ones you can't go on without as blocking.
 - you want the user to look at or review something: show (mode "review" asks a verdict per item; "show" is just to look). Items can be project files (whole, lines, or changes since a git revision), raw code/text/markdown/JSON, diffs, pictures (with a before for before/after), diagrams, HTML mockups, links. Each call makes its own review: it never replaces another's.
 - you need a yes or no before doing something (a deploy, deleting data, spending money): approve. It waits, then tells you approved or refused.
+- you want to tell the user something that needs no answer form (it's done, you're stuck, a heads-up), on a file or lines or nothing in particular: send_message. It reaches their phone; their replies come back in news.
 Then give the user the link from the result (get_link gives it again). Keep working on what doesn't depend on the answer. To wait, prefer running \`npx hitloop wait --any\` (or \`--done <id>\`) in the background: it exits, and wakes you, when the user has said something. The wait tool blocks for at most a few minutes.
 Read only what's new with news: answers, verdicts, comments on lines and marked picture areas, and notes the user wrote on files (or anywhere). Apply them, then ack (answers and verdicts) or resolve (comments and notes) with a short note the user sees. Put the user's words into docs word for word. decisions searches what they decided before: check it before asking again.
 Say who's asking with "from" (your session's name or branch). The hitl CLI does all of this too, plus serving and setup: \`npx hitloop --help\` lists every command and option; check it instead of guessing.`;
@@ -286,6 +287,30 @@ const tools: Tool[] = [
       }
       p.questions.message(need(a['set'], 'set'), need(a['id'], 'id'), 'agent', msg);
       return `Replied on ${str(a['id'])}.`;
+    },
+  },
+  {
+    name: 'send_message',
+    description:
+      "Send the user a message: a new thread on their Notes page that notifies their phone (\"Done: the login flow works, try it\", \"Stuck: the API key is missing\"). Optionally on a project file (path) or lines of it (line, end_line). They can reply; replies come back in news (and notes), and the thread stays open until you or they resolve it. For questions with options use add_questions; for a yes or no before acting, approve; to answer something they wrote, reply.",
+    inputSchema: {
+      type: 'object',
+      required: ['message'],
+      properties: {
+        message: { type: 'string', description: 'Markdown' },
+        path: { type: 'string', description: 'A project file it is about (relative to the project)' },
+        line: { type: 'integer', description: 'The first line it is about (1-based; needs path)' },
+        end_line: { type: 'integer', description: 'The last line, for a range' },
+        ...fromProp,
+        ...folderProp,
+      },
+    },
+    run: async (a) => {
+      const p = projectOf(a);
+      const num = (v: unknown) => (typeof v === 'number' ? v : undefined);
+      const c = sendMessage(p, { message: str(a['message']), path: str(a['path']), line: num(a['line']), endLine: num(a['end_line']), from: str(a['from']) || defaultFrom(p.root) });
+      const where = c.path ? ` on ${c.path}${c.line ? ':' + c.line + (c.endLine ? '-' + c.endLine : '') : ''}` : '';
+      return [`Sent message ${c.id}${where}. Their replies come back in news; resolve it (ids ["${c.id}"]) when it's settled.`, await linkFor(p.root, '/notes')].join('\n');
     },
   },
   {

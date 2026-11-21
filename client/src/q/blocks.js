@@ -5,6 +5,7 @@ import { state } from '../state.js';
 import { codeBlockHtml, renderMarkdown, upgradeCode } from '../markdown.js';
 import { drawInto } from '../mermaid.js';
 import { icon } from '../icons.js';
+import { openZoom } from '../zoom.js';
 
 const IMAGE = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg', 'bmp', 'ico']);
 const VIDEO = new Set(['mp4', 'm4v', 'webm', 'ogv', 'mov']);
@@ -297,11 +298,7 @@ export function openFile(path, lines) {
 }
 
 function openImage(src, alt) {
-  const img = document.createElement('img');
-  img.src = src;
-  img.alt = alt || '';
-  img.className = 'full-img';
-  modal(esc(alt || 'Picture'), img, 'wide');
+  openZoom(src, { title: alt || 'Picture' });
 }
 
 // links in markdown to project files open in the viewer

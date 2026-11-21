@@ -8,6 +8,7 @@ import crypto from 'node:crypto';
 import { userConfig, lanAddresses, type UserConfig } from './registry.js';
 import { allQuestions, visibility, isDone } from '../q/model.js';
 import type { ProjectView } from '../agent.js';
+import { byAgent } from '../fs/notes.js';
 import { pushAll, subscriptions, type PushResult } from './webpush.js';
 
 export interface NotifyConfig {
@@ -35,6 +36,7 @@ export const EVENTS = [
   { id: 'approve', label: 'Waiting for your OK', detail: 'An approval gate: the agent stops until you answer.', on: true },
   { id: 'review', label: 'Something to review', detail: 'An agent asks for your verdict on files, diffs, pictures, mockups.', on: true },
   { id: 'show', label: 'Something to look at', detail: 'An agent shows you something, no verdict needed.', on: true },
+  { id: 'messages', label: 'Messages from the agent', detail: 'It tells you something: done, stuck, a heads-up.', on: true },
   { id: 'replies', label: 'Replies from the agent', detail: 'On your answers, comments and notes.', on: true },
   { id: 'acks', label: 'The agent acted on your answers', detail: 'It acknowledged answers or verdicts, saying what it did.', on: false },
   { id: 'resolved', label: 'The agent resolved your notes', detail: 'A note you wrote on a file was dealt with.', on: false },
@@ -181,11 +183,14 @@ export class Notifier {
     }
     let agentMessages = 0;
     const resolved = new Set<string>();
+    const started = new Set<string>();
     for (const c of p.notes.all()) {
+      if (byAgent(c)) started.add(c.id);
       agentMessages += (c.replies ?? []).filter((r) => r.from === 'agent' || r.author === 'agent').length;
       if (c.status === 'resolved') resolved.add(c.id);
     }
-    return { things: new Set(), prints: new Map(), agentMessages, acks: new Set(), resolved };
+    // things: the messages the agent started (send_message)
+    return { things: started, prints: new Map(), agentMessages, acks: new Set(), resolved };
   }
 
   private created(p: ProjectView, kind: NotifyKind, id: string): number {
@@ -354,6 +359,21 @@ export class Notifier {
         newItems: items.length,
         approval: gate && !!main,
         blocking: gate && main ? 1 : 0,
+      };
+    }
+    const sent = eventOn(cfg, 'messages') ? p.notes.all().filter((c) => pend.fresh.has(c.id) && byAgent(c)) : [];
+    if (sent.length) {
+      const one = sent.length === 1 ? sent[0] : undefined;
+      const who = one && one.author !== 'agent' ? one.author : 'the agent';
+      const text = (c: (typeof sent)[number]) => (c.path ? `${c.path}${c.line ? ':' + c.line : ''}: ` : '') + c.body.replace(/\s+/g, ' ');
+      const clip = (t: string) => (t.length > 240 ? t.slice(0, 237) + '…' : t);
+      return {
+        ...base,
+        kind: 'notes',
+        event: 'messages',
+        title: one ? `${key}: a message from ${who}` : `${key}: ${sent.length} messages from the agent`,
+        message: clip(sent.map(text).join('\n')),
+        tag: `${key}/notes/${one ? one.id : 'messages'}`,
       };
     }
     const notes = [pend.resolved ? `${plural(pend.resolved, 'note', 'notes')} resolved` : '', pend.replies ? `${plural(pend.replies, 'reply', 'replies')} from the agent` : ''].filter(Boolean);

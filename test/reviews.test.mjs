@@ -543,6 +543,27 @@ test('the MCP server: tools, show then news, approve answered while it waits', a
     const unanswered = await m.tool('approve', { question: 'Delete the data?', timeout_seconds: 1 });
     assert.match(unanswered.content[0].text, /no answer yet/);
     assert.match((await m.tool('decisions', { q: 'deploy' })).content[0].text, /approved \("Go ahead"\)/);
+
+    // a message to the human: a note the agent started, on lines of a file; it isn't news until they reply
+    const sent = await m.tool('send_message', { message: 'Done: **greeting** says hello now.', path: 'src/app.ts', line: 1, end_line: 2 });
+    assert.ok(!sent.isError, sent.content[0].text);
+    const mid = /Sent message ([0-9a-f]+) on src\/app\.ts:1-2/.exec(sent.content[0].text)?.[1];
+    assert.ok(mid, sent.content[0].text);
+    assert.match(sent.content[0].text, /#\/p\/mcpproj\/notes/);
+    const notes = new Notes(path.join(proot, '.hitl', 'notes'), proot);
+    const note = notes.all().find((c) => c.id === mid);
+    assert.equal(note.from, 'agent');
+    assert.equal(note.author, 'tests');
+    assert.match(note.quote, /greeting = "hello"/);
+    assert.match((await m.tool('news', {})).content[0].text, /Nothing new/, "the agent's own message isn't news");
+    notes.reply(mid, 'Phil', 'Nice, thanks');
+    const heard = (await m.tool('news', {})).content[0].text;
+    assert.ok(heard.includes(`your message ${mid} on src/app.ts:1-2`), heard);
+    assert.match(heard, /human: "Nice, thanks"/);
+    assert.equal((await m.tool('send_message', { message: 'x', path: '../outside.txt' })).isError, true);
+    assert.equal((await m.tool('send_message', { message: 'x', path: 'src/nope.ts' })).isError, true);
+    assert.equal((await m.tool('send_message', { message: '  ' })).isError, true);
+    assert.match((await m.tool('send_message', { message: 'Heads-up: CI is slow today', from: 'bot' })).content[0].text, /Sent message [0-9a-f]+\. /);
   } finally {
     await m.close();
   }
@@ -576,6 +597,10 @@ test('the CLI: show, news, approve with a timeout, hooks, the stop gate', () => 
   assert.match(run('reply', 'the-app', 'c1', 'It', 'is', 'the', 'answer'), /Replied on c1/);
   assert.equal(new Reviews(proot).feedback('the-app').comments[0].replies[0].body, 'It is the answer');
   assert.match(run('resolve', 'the-app', 'c1', '--note', 'Explained'), /Resolved c1/);
+  const msg = run('message', 'Stuck:', 'the', 'key', 'is', 'missing', '--path', 'src/util.ts', '--lines', '1');
+  assert.match(msg, /Sent message [0-9a-f]+ on src\/util\.ts:1\./);
+  assert.match(msg, /#\/p\/cliproj\/notes/);
+  assert.equal(new Notes(path.join(proot, '.hitl', 'notes'), proot).all()[0].body, 'Stuck: the key is missing');
 
   // approve with nobody answering: exit code 2
   const t0 = Date.now();

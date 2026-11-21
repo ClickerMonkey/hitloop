@@ -4,6 +4,7 @@ import { on, toast } from './util.js';
 import { commentsOn, state } from './state.js';
 import { icon } from './icons.js';
 import { areaNumber, composerHtml } from './review.js';
+import { openZoom } from './zoom.js';
 
 /** the image on screen now */
 let cur = null;
@@ -14,7 +15,7 @@ export function wireImage({ path, stage, pic, tools, step }) {
   cur = me;
   paintTools(me);
   pic.onclick = () => {
-    if (!me.drawing) stage.classList.toggle('actual');
+    if (!me.drawing) openZoom(pic.currentSrc || pic.src, { title: path, download: path.slice(path.lastIndexOf('/') + 1), overlay: me.wrap?.querySelector('.marks') });
   };
   // a sideways swipe opens the next (swipe left) or previous (swipe right) file
   let start = null;
@@ -28,7 +29,7 @@ export function wireImage({ path, stage, pic, tools, step }) {
   stage.addEventListener('touchend', (e) => {
     const s = start;
     start = null;
-    if (!s || me.drawing || stage.classList.contains('actual') || !e.changedTouches.length) return;
+    if (!s || me.drawing || !e.changedTouches.length) return;
     const dx = e.changedTouches[0].clientX - s.x,
       dy = e.changedTouches[0].clientY - s.y;
     if (Math.abs(dx) > 60 && Math.abs(dx) > 1.5 * Math.abs(dy) && Date.now() - s.t < 800) step(dx < 0 ? 1 : -1);
@@ -54,7 +55,7 @@ function paintTools(me) {
   const touch = matchMedia('(pointer: coarse)').matches;
   me.tools.innerHTML = me.drawing
     ? `<span class="ink-hint">${icon('pen', 14)} Draw on the picture around what you mean, then say what should change.</span><span class="grow"></span><button class="btn small" data-ink="undo">${icon('undo', 14)} Undo</button><button class="btn small" data-ink="clear">Clear</button><button class="btn small" data-ink="cancel">Cancel</button>`
-    : `${ro ? '' : `<button class="btn small" data-ink="start">${icon('pen', 14)} Mark an area</button>`}<span class="faint hint">${touch ? 'Tap to zoom · swipe for the next file' : 'Click to see it at full size'}</span>`;
+    : `${ro ? '' : `<button class="btn small" data-ink="start">${icon('pen', 14)} Mark an area</button>`}<span class="faint hint">${touch ? 'Tap to zoom · swipe for the next file' : 'Click to zoom'}</span>`;
 }
 
 function startDrawing(me) {

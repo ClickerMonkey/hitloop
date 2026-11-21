@@ -185,7 +185,8 @@ test('events notify as configured: questions by default, acks only when turned o
   assert.equal(eventOn({}, 'questions'), true);
   assert.equal(eventOn({}, 'acks'), false);
   assert.equal(eventOn({ replies: false }, 'replies'), false, 'the old replies setting still counts');
-  assert.equal(EVENTS.length, 11);
+  assert.equal(EVENTS.length, 12);
+  assert.equal(eventOn({}, 'messages'), true);
 
   const root = path.join(tmp, 'proj');
   fs.mkdirSync(root, { recursive: true });
@@ -234,6 +235,20 @@ test('events notify as configured: questions by default, acks only when turned o
   await until(3);
   assert.equal(received[2].kind, 'machine');
   assert.equal(received[2].event, 'alert');
+
+  // a message from the agent (send_message): its text goes out, linking to the notes
+  view.notes.add({ path: '', body: 'Done: the login works,\n  try it.', author: 'branch main', from: 'agent' });
+  n.observe('proj', 'notes', 'notes');
+  await until(4);
+  assert.equal(received[3].event, 'messages');
+  assert.equal(received[3].hash, '#/p/proj/notes');
+  assert.match(received[3].title, /proj: a message from branch main/);
+  assert.equal(received[3].message, 'Done: the login works, try it.');
+  // the human's own note doesn't notify
+  view.notes.add({ path: '', body: 'mine', author: 'Phil' });
+  n.observe('proj', 'notes', 'notes');
+  await new Promise((r) => setTimeout(r, 1500));
+  assert.equal(received.length, 4);
   hook.close();
 });
 

@@ -2,6 +2,8 @@
 // `strict` (no scripts, no clicks, labels as text) and given the page's own font and colours, light or dark. The SVG
 // is shown as an image from a blob URL, so nothing in a diagram can reach the page.
 
+import { openZoom } from './zoom.js';
+
 const SVG_ROOT = /<svg\b[^>]*>/;
 const VIEW_BOX = /viewBox="\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)\s*"/;
 const SIZE_ATTRIBUTES = /\s(?:width|height)="[^"]*"/g;
@@ -111,7 +113,7 @@ export async function drawInto(host, source) {
   const img = document.createElement('img');
   img.src = url;
   img.alt = 'Diagram';
-  img.onclick = () => window.open(url, '_blank', 'noopener');
+  img.onclick = () => openZoom(url, { title: 'Diagram' });
   // fit the width when shrinking keeps it readable; a much wider diagram scrolls sideways at a smaller size
   img.onload = () => {
     const room = host.clientWidth - 26;

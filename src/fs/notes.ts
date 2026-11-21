@@ -1,5 +1,6 @@
 // Notes from the human to the agent: on a file, on lines of it, on an area of a picture, or on nothing in particular
-// ("look at the login flow"), with photos if they like. Kept in .hitl/notes/notes.json, with NOTES.md beside it
+// ("look at the login flow"), with photos if they like. The agent can start one too (send_message, `hitl message`):
+// a message to the human, on a file, lines or nothing in particular, that they can reply to. Kept in .hitl/notes/notes.json, with NOTES.md beside it
 // written for an agent to work through.
 //
 // Several processes write here (the page through the hub, an agent through the MCP server or the CLI), so every change
@@ -33,6 +34,8 @@ export interface Comment {
   quote?: string;
   body: string;
   author: string;
+  /** "agent" when the agent started it (a message to the human) */
+  from?: 'owner' | 'agent';
   status: CommentStatus;
   createdAt: string;
   updatedAt?: string;
@@ -179,7 +182,7 @@ export class Notes {
   unread(): number {
     let n = 0;
     for (const c of this.comments) {
-      if (c.author !== 'agent' && (c.seq ?? 0) > this.readSeq) n++;
+      if (!byAgent(c) && (c.seq ?? 0) > this.readSeq) n++;
       for (const r of c.replies ?? []) if (r.from !== 'agent' && r.author !== 'agent' && (r.seq ?? 0) > this.readSeq) n++;
     }
     return n;
@@ -191,13 +194,14 @@ export class Notes {
     });
   }
 
-  add(input: { path: string; line?: number; endLine?: number; body: string; author: string; commit?: string; area?: Area; strokes?: number[][]; snapshot?: Buffer; photos?: string[] }): Comment {
+  add(input: { path: string; line?: number; endLine?: number; body: string; author: string; from?: 'agent'; commit?: string; area?: Area; strokes?: number[][]; snapshot?: Buffer; photos?: string[] }): Comment {
     return this.change(() => {
       const c: Comment = {
         id: crypto.randomBytes(4).toString('hex'),
         path: input.path,
         body: input.body.trim(),
-        author: input.author || 'reviewer',
+        author: input.author || (input.from === 'agent' ? 'agent' : 'reviewer'),
+        ...(input.from === 'agent' ? { from: 'agent' as const } : {}),
         status: 'open',
         createdAt: new Date().toISOString(),
         seq: ++this.seq,
@@ -345,6 +349,9 @@ export class Notes {
   }
 }
 
+/** the agent started this note (a message to the human) */
+export const byAgent = (c: Pick<Comment, 'author' | 'from'>) => c.from === 'agent' || c.author === 'agent';
+
 /** What to tell an agent: where the notes are, and how to answer them. */
 export function agentPrompt(mdRel: string): string {
   return (
@@ -382,7 +389,7 @@ export function toMarkdown(comments: Comment[], jsonRel: string, { openOnly = fa
         out.push(`### ${file || '(not about a particular file)'}`, '');
       }
       const where = !c.path ? 'note' : c.line ? `${c.path}:${c.line}${c.endLine ? '-' + c.endLine : ''}` : c.area ? `${c.path} (marked area)` : `${c.path} (whole file)`;
-      out.push(`#### \`${where}\` — ${c.author}${c.commit ? ` @ ${c.commit}` : ''} · id \`${c.id}\``, '');
+      out.push(`#### \`${where}\` — ${byAgent(c) ? `you, the agent${c.author !== 'agent' ? ` (${c.author})` : ''}` : c.author}${c.commit ? ` @ ${c.commit}` : ''} · id \`${c.id}\``, '');
       if (c.quote) out.push('```' + langOf(c.path), c.quote, '```', '');
       if (c.area) out.push(`Marked area: x ${c.area.x}, y ${c.area.y}, ${c.area.w} × ${c.area.h} px of the picture.` + (c.image ? ` The marks are drawn on a copy: ${c.image} (beside this file).` : ''), '');
       if (c.image) out.push(`![The marked area](${c.image})`, '');

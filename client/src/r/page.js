@@ -6,6 +6,7 @@
 import { api, esc, ago, debounce, toast, copy, extOf, rawUrl, purl, store } from '../util.js';
 import { state, fileHref } from '../state.js';
 import { icon } from '../icons.js';
+import { openZoom } from '../zoom.js';
 import { markdownHtml, renderMarkdown } from '../markdown.js';
 import { drawInto } from '../mermaid.js';
 import { renderDiff } from '../code.js';
@@ -413,7 +414,7 @@ function pictureInto(body, it, card, src, alt) {
   card.picwrap = body.querySelector('.picwrap');
   card.pic.onclick = () => {
     if (view.inks.has(it.id)) return;
-    body.querySelector('.rv-pic').classList.toggle('actual');
+    openZoom(card.pic.currentSrc || card.pic.src, { title: alt, overlay: card.picwrap.querySelector('.marks') });
   };
   paintPicMarks(card, it);
 }
@@ -769,7 +770,6 @@ function openComposer(card, it, at = {}, anchorRow) {
 /** draw on the picture, then say what you mean */
 function startMarking(card, it) {
   if (view.inks.has(it.id) || !card.picwrap || !card.pic) return;
-  card.querySelector('.rv-pic')?.classList.remove('actual');
   const ink = startInk(card.picwrap, card.pic);
   view.inks.set(it.id, ink);
   const bar = document.createElement('div');

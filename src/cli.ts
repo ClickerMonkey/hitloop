@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { StoreError, ensureReadme } from './hub/atomic.js';
 import { start, version } from './server.js';
 import { describeSet, readAnswers, FILTERS, type Filter } from './q/agent.js';
-import { decisionsText, news, newsCounts, openProject, overviewText, parseDuration, readFeedback, readNotes, waitFor, type ProjectView, type ReviewFilter, type WaitFor } from './agent.js';
+import { decisionsText, news, newsCounts, openProject, overviewText, parseDuration, readFeedback, readNotes, sendMessage, waitFor, type ProjectView, type ReviewFilter, type WaitFor } from './agent.js';
 import { clearHubState, configDir, ensureHub, forget, hubToken, keyed, lanAddresses, links, projects, projectsPath, register, runningHub, normaliseBase, userConfig, userConfigPath, updateUserConfig, writeHubState } from './hub/registry.js';
 import { setSchema } from './q/schema.js';
 import { reviewSchema } from './r/schema.js';
@@ -68,6 +68,8 @@ For agents (and you), in a project folder (or -C <folder>):
   hitl reply <set> <question> <message…>        write on a question's thread
   hitl reply <review> <comment> <message…>      reply to a review comment (c12)
   hitl reply --note <id> <message…>             reply to a note
+  hitl message <message…> [--path <file>] [--lines 10-20]
+                                                send the human a message (their phone is notified; replies come in news)
   hitl ack <set|review> <id…> --note "…"        answers / verdicts dealt with (the human sees the note)
   hitl resolve [<review>] <id…> --note "…"      resolve review comments, or notes (no review), saying what you did
   hitl close <review|set>                       close it (it drops to the bottom of the list)
@@ -118,7 +120,7 @@ interface Args {
 
 const VALUED = new Set([
   '--base', '-p', '--port', '-H', '--host', '--token', '--allow-host', '-C', '--folder', '--timeout', '--settle', '--ids', '--section', '--limit', '--offset', '--note', '--forget', '--questions',
-  '-x', '--exclude', '--hide', '--max-file-mb', '--author', '--title', '--intro', '--mode', '--to', '--lines', '--against', '--lang', '--name', '--details', '--file', '--from',
+  '-x', '--exclude', '--hide', '--max-file-mb', '--author', '--title', '--intro', '--mode', '--to', '--lines', '--against', '--lang', '--name', '--details', '--file', '--from', '--path',
 ]);
 const BOOLEAN = new Set([
   '-h', '--help', '-v', '--version', '--solo', '--background', '--local', '--no-token', '-o', '--open', '--read-only', '--json', '--full', '--peek', '--all', '--new', '--unacked', '--changed',
@@ -126,7 +128,7 @@ const BOOLEAN = new Set([
 ]);
 const REPEAT = new Set(['--allow-host', '--ids', '-x', '--exclude', '--hide']);
 const COMMANDS = new Set([
-  'serve', 'init', 'status', 'news', 'wait', 'show', 'review', 'approve', 'feedback', 'ask', 'show-set', 'answers', 'notes', 'reply', 'ack', 'resolve', 'close', 'decisions', 'validate', 'schema', 'url', 'stop',
+  'serve', 'init', 'status', 'news', 'wait', 'show', 'review', 'approve', 'feedback', 'ask', 'show-set', 'answers', 'notes', 'reply', 'message', 'ack', 'resolve', 'close', 'decisions', 'validate', 'schema', 'url', 'stop',
   'projects', 'notify', 'https', 'hook', 'hooks', 'mcp', 'help', 'list', 'machine',
 ]);
 
@@ -233,6 +235,8 @@ async function run(): Promise<void> {
     }
     case 'reply':
       return reply();
+    case 'message':
+      return message();
     case 'ack': {
       const [id, ...ids] = args.pos;
       const p = project();
@@ -592,6 +596,14 @@ async function ask(): Promise<void> {
   console.log(`Added ${ids.length} question${ids.length === 1 ? '' : 's'} to "${set}": ${ids.join(', ')}`);
   for (const e of [...normalised.errors, ...normalised.warnings]) console.log('  ' + e);
   for (const l of await linkLines(p.root, `/q/${encodeURIComponent(set)}`)) console.log('  ' + l);
+}
+
+async function message(): Promise<void> {
+  const p = project();
+  const [line, endLine] = (value('--lines') ?? '').split('-').map((n) => parseInt(n, 10));
+  const c = sendMessage(p, { message: args.pos.join(' '), path: value('--path') ?? '', line, endLine, from: value('--from') ?? defaultFrom(p.root) });
+  console.log(`Sent message ${c.id}${c.path ? ` on ${c.path}${c.line ? ':' + c.line + (c.endLine ? '-' + c.endLine : '') : ''}` : ''}. Replies come back in news; resolve ${c.id} when it's settled.`);
+  for (const l of await linkLines(p.root, '/notes')) console.log('  ' + l);
 }
 
 function reply(): void {

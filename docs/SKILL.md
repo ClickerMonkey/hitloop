@@ -16,6 +16,8 @@ which does the same. `npx hitloop --help` lists every command and option: check 
 - **Something to look at or review** (files, a diff, screenshots, a mockup, a plan) → a review.
 - **A yes or no before something risky or hard to undo** (deploy, delete data, spend money, send a message) → an
   approval. Never do the risky thing until it says APPROVED.
+- **Something to tell them that needs no form** (it's done, you're stuck, a heads-up) → a message (`send_message`,
+  or `npx hitloop message`). It reaches their phone; their replies come back in news.
 - **Before asking something that may have been decided already** → check the decisions.
 
 ## Setup (once per project)
@@ -60,6 +62,16 @@ npx hitloop approve "Deploy 2.4.0 to production?" --details "Restarts the API (~
 
 MCP `approve` (question, details, items) waits up to 15 minutes and returns APPROVED, REFUSED or NOT YET with the
 user's note.
+
+## Sending a message
+
+```sh
+npx hitloop message "Done: the login flow works, try it on your phone"
+npx hitloop message "Stuck: this needs an API key" --path src/api.ts --lines 12-20
+```
+
+MCP `send_message` (message, path, line, end_line). It goes on their Notes page and notifies them. Their replies come
+back in news; resolve it (`npx hitloop resolve <id>`) once it's settled.
 
 ## Giving the link, then waiting
 

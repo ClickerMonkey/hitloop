@@ -7,7 +7,8 @@ import { readAnswers, summaryLine as questionsLine } from './q/agent.js';
 import { allQuestions, answerText, isDone, type Answer } from './q/model.js';
 import { Reviews } from './r/store.js';
 import { VERDICT_TEXT, isStale, summarise, verdictText, whereText, type Comment, type Summary as ReviewSummary } from './r/model.js';
-import { Notes } from './fs/notes.js';
+import fs from 'node:fs';
+import { Notes, byAgent, type Comment as Note } from './fs/notes.js';
 
 /** A project as the agent side sees it: its files on disk, no watching. */
 export interface ProjectView {
@@ -91,12 +92,12 @@ export function readNotes(notes: Notes, opts: { filter?: 'new' | 'open' | 'all';
   const list = notes.all().filter((c) => {
     if (filter === 'open') return c.status === 'open';
     if (filter === 'all') return true;
-    return (c.author !== 'agent' && (c.seq ?? 0) > readSeq) || (c.replies ?? []).some((r) => r.from !== 'agent' && (r.seq ?? 0) > readSeq);
+    return (!byAgent(c) && (c.seq ?? 0) > readSeq) || (c.replies ?? []).some((r) => r.from !== 'agent' && (r.seq ?? 0) > readSeq);
   });
   const lines: string[] = [];
   for (const c of list) {
     const where = !c.path ? 'a note' : c.line ? `${c.path}:${c.line}${c.endLine ? '-' + c.endLine : ''}` : c.area ? `${c.path} (marked area ${c.area.w}×${c.area.h} at ${c.area.x},${c.area.y})` : c.path;
-    lines.push(`- note ${c.id} on ${where}${c.status === 'resolved' ? ' [resolved]' : ''}: "${c.body}"`);
+    lines.push(`- ${byAgent(c) ? 'your message' : 'note'} ${c.id} on ${where}${c.status === 'resolved' ? ' [resolved]' : ''}: "${c.body}"`);
     if (c.quote) lines.push(`  lines: ${JSON.stringify(c.quote.length > 300 ? c.quote.slice(0, 297) + '…' : c.quote)}`);
     if (c.image) lines.push(`  marked-up picture: .hitl/notes/${c.image}`);
     for (const p of c.photos ?? []) lines.push(`  photo: .hitl/notes/${p}`);
@@ -104,6 +105,23 @@ export function readNotes(notes: Notes, opts: { filter?: 'new' | 'open' | 'all';
   }
   if (filter === 'new' && !opts.peek && seq > readSeq) notes.markRead(seq);
   return { text: lines.join('\n'), count: list.length };
+}
+
+/** The agent writes to the human: a new thread on the Notes page (on a file, lines of it, or nothing in particular)
+ * that notifies them and that they can reply to; their replies come back in news. */
+export function sendMessage(p: ProjectView, m: { message: string; path?: string; line?: number; endLine?: number; from?: string }): Note {
+  const body = m.message.trim();
+  if (!body) throw new StoreError('What should the message say? Pass "message".');
+  let rel = '';
+  if (m.path) {
+    const abs = path.resolve(p.root, m.path);
+    rel = path.relative(p.root, abs).split(path.sep).join('/');
+    if (!rel || rel.startsWith('../') || rel === '..' || path.isAbsolute(rel)) throw new StoreError(`"${m.path}" is not in the project (${p.root}).`);
+    if (!fs.existsSync(abs)) throw new StoreError(`No file "${rel}" in the project.`);
+  }
+  const line = rel && m.line && m.line > 0 ? Math.floor(m.line) : undefined;
+  const endLine = line && m.endLine && m.endLine > line ? Math.floor(m.endLine) : undefined;
+  return p.notes.add({ path: rel, ...(line ? { line } : {}), ...(endLine ? { endLine } : {}), body, author: m.from?.trim() || 'agent', from: 'agent' });
 }
 
 // ── the feed ──

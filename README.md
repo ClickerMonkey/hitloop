@@ -33,6 +33,7 @@ and it carries on. hitl gives that person somewhere to do it, instead of a chat 
 | **Approve** | An agent asks "Deploy 2.4.0 to production?" and waits. You get a notification, read what it will do, and tap **Approve** or **Refuse**. |
 | **Browse the files** | Highlighted code, rendered markdown with Mermaid and math, images, CSV, JSON, notebooks, git status, diffs and history, search, downloads. Big files and big folders open quickly. |
 | **Notes for the agent** | Write on any file, line or picture area, or about anything, with photos from your phone. The agent picks them up and resolves each with a reply. |
+| **Messages from the agent** | The agent tells you something (done, stuck, a heads-up), on a file, on lines or about nothing in particular. Your phone gets it; reply on the thread and the agent reads your reply. |
 | **Decisions** | Everything you answered, approved or gave a verdict on, searchable. Agents check it before asking again. |
 | **Who's asking** | Each request says which agent session or branch made it. |
 | **Notifications** | Your phone or computer buzzes when an agent asks, shows or waits, when a Claude Code session finishes, or when this computer crosses a line you set (Web Push, straight from the hub; https for phones built in). Approvals go out at once. |
@@ -55,6 +56,7 @@ a short section to the project's `CLAUDE.md` (or `AGENTS.md`) on when to use it.
 | `approve` | Ask yes or no before doing something, and wait for it. Returns APPROVED, REFUSED or "not yet" with their note. |
 | `add_questions` | Questions in a set: options, a recommendation, why it matters, follow-ups that open on an answer. |
 | `get_feedback`, `get_answers`, `notes` | One review's feedback, one set's answers, the notes. |
+| `send_message` | Tell the human something (done, stuck, a heads-up), on a file, on lines or about nothing in particular. It notifies their phone; their replies come back in `news`. |
 | `ack`, `resolve`, `reply` | Mark answers and verdicts as dealt with, resolve comments and notes saying what you did, write back. |
 | `decisions` | What the human decided before. |
 | `status`, `get_link` | What's open; the links to send. |
@@ -74,6 +76,7 @@ npx hitloop feedback <review>    npx hitloop answers <set> --new    npx hitloop 
 npx hitloop ack <set|review> <id…> --note "Done in src/x.ts"
 npx hitloop resolve [<review>] <id…> --note "Fixed: …"
 npx hitloop reply <review> c12 "Because the API bills per call."
+npx hitloop message "Done: login works, try it" --path src/login.ts --lines 10-20
 npx hitloop decisions auth                        # what was decided about auth
 npx hitloop status                                # every request, with counts
 ```
@@ -187,7 +190,7 @@ Pick what notifies:
 | Event | On at first |
 | --- | --- |
 | New questions; waiting for your OK (approvals); something to review; something to look at | yes |
-| Replies from the agent (on your answers, comments and notes) | yes |
+| Messages from the agent; replies from the agent (on your answers, comments and notes) | yes |
 | The agent acted on your answers (ack); resolved your notes; changed what it asked | no |
 | A Claude Code session finished (worked for a while, now waits for you); a workflow finished (with the machine dashboard on) | no |
 | Machine alerts | yes |

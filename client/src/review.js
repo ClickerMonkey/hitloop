@@ -26,8 +26,11 @@ export function threadHtml(c, folder) {
     .join('');
   const done = c.status === 'resolved';
   const ro = state.info.readOnly;
-  return `<div class="cmt${done ? ' resolved' : ''}" data-cid="${esc(c.id)}">
-  <div class="cmt-head"><b>${esc(c.author || 'reviewer')}</b><span class="faint">${ago(Date.parse(c.createdAt))}</span>${done ? '<span class="pill ok">Resolved</span>' : ''}
+  // a message the agent started (send_message): its name, if it gave one, beside the agent mark
+  const agent = c.from === 'agent' || c.author === 'agent';
+  const who = agent ? `${icon('sparkles', 13)} agent${c.author && c.author !== 'agent' ? ` <span class="faint">· ${esc(c.author)}</span>` : ''}` : esc(c.author || 'reviewer');
+  return `<div class="cmt${done ? ' resolved' : ''}${agent ? ' agent' : ''}" data-cid="${esc(c.id)}">
+  <div class="cmt-head"><b>${who}</b><span class="faint">${ago(Date.parse(c.createdAt))}</span>${done ? '<span class="pill ok">Resolved</span>' : ''}
   ${ro ? '' : `<span class="cmt-acts"><button class="mini" data-cact="${done ? 'reopen' : 'resolve'}" title="${done ? 'Reopen' : 'Resolve'}">${done ? icon('undo', 14) + ' Reopen' : icon('check', 14) + ' Resolve'}</button><button class="mini" data-cact="edit" title="Edit" aria-label="Edit">${icon('edit', 14)}</button><button class="mini" data-cact="delete" title="Delete" aria-label="Delete">${icon('trash', 14)}</button></span>`}</div>
   <div class="cmt-body md">${markdown(c.body, folder)}</div>
   ${photosHtml((c.photos || []).map((p) => purl(`api/comments/${esc(c.id)}/photo/${esc(p.slice(p.lastIndexOf('/') + 1))}`)))}
@@ -176,8 +179,8 @@ export function renderReviewPage(el, filter, go) {
     )
     .join('');
   const ro = state.info.readOnly;
-  el.innerHTML = `<div class="page-wrap notes-page"><header class="page-hero"><div><span class="eyebrow">${esc(state.info.name)}</span><h1>Notes for the agent</h1></div></header>
-  <p class="lede">Write on any file, any line (tap its number) or any picture (mark an area), or here about anything. Add photos from your phone. The agent reads them with <code>npx hitloop news</code>, works through them, and resolves each with a reply you'll see here.</p>
+  el.innerHTML = `<div class="page-wrap notes-page"><header class="page-hero"><div><span class="eyebrow">${esc(state.info.name)}</span><h1>Notes</h1></div></header>
+  <p class="lede">Write on any file, any line (tap its number) or any picture (mark an area), or here about anything. Add photos from your phone. The agent reads them with <code>npx hitloop news</code>, works through them, and resolves each with a reply you'll see here. Messages the agent sends you land here too.</p>
   ${ro ? '' : `<div class="new-note" id="new-note">${composerHtml('', 0, 0)}</div>`}
   <div class="page-tools"><div class="seg">${tabs}</div><span class="grow"></span>
     ${mdLink ? `<a class="btn" href="${mdLink}">${icon('file', 16)} NOTES.md</a>` : ''}
