@@ -5,6 +5,7 @@ import { state, projectOf } from '../state.js';
 import { icon } from '../icons.js';
 import { md, renderBlocks, modal } from './blocks.js';
 import { renderQuestion, draw, refreshTop } from './question.js';
+import { closeButton } from '../close.js';
 import { visibility, summarise, allQuestions, isDone, isStale, recommendedAnswer, questionById } from '../../../src/q/model.ts';
 
 let main = null;
@@ -89,7 +90,7 @@ export async function showSet(container, key, setId, focusQ) {
   else if (view.mode === 'cards') showCard(0);
 }
 
-const shapeOf = (set) => JSON.stringify(set.sections.map((s) => [s.id, s.title, s.intro, s.content, s.hidden, s.showIf, s.questions.map((q) => [q.id, q.rev, q.why, q.header, q.content, q.priority, q.hidden, q.showIf, q.options])]).concat([set.title, set.intro, set.content]));
+const shapeOf = (set) => JSON.stringify(set.sections.map((s) => [s.id, s.title, s.intro, s.content, s.hidden, s.showIf, s.questions.map((q) => [q.id, q.rev, q.why, q.header, q.content, q.priority, q.hidden, q.showIf, q.options])]).concat([set.title, set.intro, set.content, set.status]));
 
 function counts() {
   const set = view.data.set;
@@ -229,6 +230,8 @@ function renderSet() {
   head.innerHTML = `<div class="hero-top"><div class="hero-text"><span class="eyebrow">${esc(project?.name || view.key)} · Questions${set.from ? ` · from ${esc(set.from)}` : ''}</span><h1>${esc(set.title)}</h1></div><div class="hero-ring" id="hero-ring"></div></div>`;
   if (set.intro) head.append(md(set.intro, '', 'set-intro'));
   head.insertAdjacentHTML('beforeend', '<div class="hero-stats" id="hero-stats"></div>');
+  if (set.status === 'closed') head.insertAdjacentHTML('beforeend', `<p class="rv-closed">${icon('check', 14)} Closed: this set isn't waiting for you.</p>`);
+  if (!info.readOnly) head.insertAdjacentHTML('beforeend', `<p class="close-row">${closeButton('questions', view.key, view.setId, set.status === 'closed')}</p>`);
   if (set.content.length) {
     const c = document.createElement('div');
     c.className = 'q-content';
@@ -721,6 +724,13 @@ async function reloadSet() {
   const old = view.data;
   const shape = shapeOf(data.set);
   view.data = data;
+  if (old.set.status !== data.set.status) {
+    // dismissed or brought back: draw the top again (its button and the closed note)
+    view.shape = shape;
+    view.vis = visibility(data.set, data.answers.answers);
+    renderSet();
+    return;
+  }
   if (shape !== view.shape) {
     // the questions changed: draw again, keeping the place
     view.shape = shape;

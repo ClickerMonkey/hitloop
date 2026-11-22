@@ -441,6 +441,12 @@ export class Workspace {
       }
       case '/message':
         return json(res, 200, { message: qs.message(setId, qid, 'owner', str(b['body'])) });
+      case '/close': {
+        // the human dismisses a set (it stops waiting for them) or brings it back
+        if (typeof b['closed'] !== 'boolean') return json(res, 400, { error: '{ closed: true | false }' });
+        qs.updateSet(setId, { status: b['closed'] ? 'closed' : 'open' });
+        return json(res, 200, { status: b['closed'] ? 'closed' : 'open', summary: qs.summary(setId) });
+      }
     }
     return json(res, 404, { error: 'not found' });
   }
@@ -527,6 +533,13 @@ export class Workspace {
         return json(res, 200, { comment: rv.editComment(id, str(b['cid']), str(b['body'])) });
       case '/delete':
         return json(res, 200, { ok: rv.deleteComment(id, str(b['cid'])) });
+      case '/close': {
+        // the human dismisses a review or approval (it stops waiting for them) or brings it back
+        if (typeof b['closed'] !== 'boolean') return json(res, 400, { error: '{ closed: true | false }' });
+        const status = b['closed'] ? 'closed' : 'open';
+        rv.update(id, { status });
+        return json(res, 200, { status, summary: rv.summary(id) });
+      }
     }
     return json(res, 404, { error: 'not found' });
   }

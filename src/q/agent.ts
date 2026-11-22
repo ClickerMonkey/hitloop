@@ -187,6 +187,8 @@ export interface WaitOptions {
 
 function condition(set: QSet, af: AnswerFile, w: WaitOptions): boolean {
   const s = summarise(set, af);
+  // dismissed by the human: a wait for it being answered is over
+  if (set.status === 'closed' && (w.until ?? 'any') !== 'any') return true;
   switch (w.until ?? 'any') {
     case 'any':
       return s.unread + s.unreadMessages > 0;

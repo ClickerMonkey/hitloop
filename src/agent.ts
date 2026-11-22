@@ -217,12 +217,15 @@ function met(p: ProjectView, w: WaitOptions): { ok: boolean; stamp: string } {
       const s = p.reviews.summary(id);
       if (!s) continue;
       stamp.push(p.reviews.feedback(id).seq);
+      // dismissed by the human: nothing more to wait for, so a wait doesn't hang on it
+      if (s.status === 'closed') continue;
       if (until === 'done' || until === 'blocking') ok &&= s.done;
       else ok &&= s.done || (s.mode !== 'approve' && s.reviewed >= s.items && s.items > 0);
     } else if (p.questions.has(id)) {
       const s = p.questions.summary(id);
       if (!s) continue;
       stamp.push(p.questions.answers(id).seq);
+      if (s.status === 'closed') continue;
       if (until === 'blocking') ok &&= s.blocking === 0;
       else ok &&= s.toAnswer === 0;
     } else throw new StoreError(`No review or question set "${id}"`);

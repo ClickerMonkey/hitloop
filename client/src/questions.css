@@ -313,6 +313,19 @@
 .set-go {
   color: var(--text-faint);
 }
+/* a row with its Dismiss / Reopen button beside it */
+.set-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.set-line > .set-row {
+  flex: 1;
+  min-width: 0;
+}
+.set-line > .close-btn {
+  flex: none;
+}
 
 /* ── a set: the hero ── */
 .set-hero {

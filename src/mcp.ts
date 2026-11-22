@@ -224,7 +224,7 @@ const tools: Tool[] = [
   },
   {
     name: 'update_review',
-    description: "Change a review's title, intro or mode, or close it (closed ones drop to the bottom of the user's list) and reopen it.",
+    description: "Change a review's title, intro or mode, or close it (closed ones drop to the bottom of the user's list) and reopen it. The user can dismiss one too: a closed one is no longer waiting for them, and a wait for it ends.",
     inputSchema: { type: 'object', required: ['review'], properties: { ...reviewProp, title: { type: 'string' }, intro: { type: 'string' }, mode: { enum: ['review', 'show', 'approve'] }, status: { enum: ['open', 'closed'] }, ...folderProp } },
     run: async (a) => {
       const patch: Json = {};
@@ -375,7 +375,7 @@ const tools: Tool[] = [
   },
   {
     name: 'update_set',
-    description: "Make a question set, or change its title, intro, content or status (closed sets drop to the bottom of the user's list).",
+    description: "Make a question set, or change its title, intro, content or status (closed sets drop to the bottom of the user's list). The user can dismiss one too: a closed set is no longer waiting for them, and a wait for it ends.",
     inputSchema: {
       type: 'object',
       required: ['set'],

@@ -329,6 +329,19 @@ test('waitFor: until done, all, any; times out; stops on abort', async () => {
   await assert.rejects(() => waitFor(p, { until: 'done', ids: ['no-such'], pollMs: 10, timeoutMs: 50 }), /No review or question set "no-such"/);
 });
 
+test('dismissed: a closed approval is not waited on any more, and reopening waits again', async () => {
+  const proot = makeProject('dismissed');
+  const p = openProject(proot);
+  const { id } = p.reviews.create({ title: 'Deploy?', mode: 'approve' }, []);
+  assert.equal(await waitFor(p, { until: 'done', ids: [id], pollMs: 30, timeoutMs: 150 }), false);
+  // the human no longer wants it: a wait for it is over, with no answer
+  p.reviews.update(id, { status: 'closed' });
+  assert.equal(await waitFor(p, { until: 'done', ids: [id], pollMs: 30, timeoutMs: 150 }), true);
+  assert.equal(p.reviews.feedback(id).overall, undefined);
+  p.reviews.update(id, { status: 'open' });
+  assert.equal(await waitFor(p, { until: 'done', ids: [id], pollMs: 30, timeoutMs: 150 }), false);
+});
+
 test('decisions: answers, verdicts and approvals, newest first, narrowed by words', async () => {
   const proot = makeProject('decided');
   const p = openProject(proot);

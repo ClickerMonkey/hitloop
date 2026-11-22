@@ -25,7 +25,7 @@ and it carries on. hitl gives that person somewhere to do it, instead of a chat 
 
 | | |
 |---|---|
-| **Inbox** | Everything waiting on you across every project, most urgent first: approvals (an agent is waiting), blocking questions, reviews, things to look at. What's done folds away. |
+| **Inbox** | Everything waiting on you across every project, most urgent first: approvals (an agent is waiting), blocking questions, reviews, things to look at. What's done folds away. Changed your mind? **Dismiss** takes a request off the list (the agent sees it closed and stops waiting for it); **Reopen** brings it back. |
 | **Answer questions** | Dozens at a time, with recommendations, why each one matters, and pictures, diffs and mockups to decide from. Take the recommendations and change the few you disagree with. Text answers grow and wrap as you type. |
 | **Review** | Each thing the agent shows you gets **Looks good**, **Needs changes** or **No**. Comment on a line (tap its number; tap another for a range), on selected text, or on an **area of a picture** you draw around. Attach photos. Finish with **Approve** or **Request changes**. |
 | **One at a time** | Swipe through a review: right for looks good, left for needs changes. Good for thirty screenshots. |

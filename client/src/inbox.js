@@ -6,8 +6,12 @@ import { state } from './state.js';
 import { icon } from './icons.js';
 import { ring, hueOfText, setHref } from './q/page.js';
 import { reviewHref } from './r/page.js';
+import { closeButton } from './close.js';
 
 const t = (s) => Date.parse(s || '') || 0;
+
+/** a row, with Dismiss beside it while it waits on you, or Reopen once it's closed */
+const withClose = (link, kind, key, s, waiting) => (waiting || s.status === 'closed' ? `<div class="set-line">${link}${closeButton(kind, key, s.id, s.status === 'closed')}</div>` : link);
 
 /** every request as a row, with how urgent it is */
 function rows(projects) {
@@ -53,7 +57,7 @@ function questionsRow(p, s, showProject) {
   return `<a class="set-row${s.status === 'closed' ? ' closed' : ''}${s.blocking ? ' urgent' : ''}" href="${setHref(p.key, s.id)}">${ring(s.done, s.visible, 48)}<div class="set-info"><b class="set-name">${esc(s.title)}</b><span class="set-sub">${sub}</span><span class="set-chips">${chips}</span></div><span class="set-go">${icon('chevron-right', 20)}</span></a>`;
 }
 
-const rowHtml = (r, showProject) => (r.kind === 'review' ? reviewRow(r.p, r.s, showProject) : questionsRow(r.p, r.s, showProject));
+const rowHtml = (r, showProject) => withClose(r.kind === 'review' ? reviewRow(r.p, r.s, showProject) : questionsRow(r.p, r.s, showProject), r.kind === 'review' ? 'review' : 'questions', r.p.key, r.s, r.waiting);
 
 /** the inbox: every project (key ''), or one */
 export function renderInbox(el, key = '') {

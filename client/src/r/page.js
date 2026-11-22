@@ -10,6 +10,7 @@ import { openZoom } from '../zoom.js';
 import { markdownHtml, renderMarkdown } from '../markdown.js';
 import { drawInto } from '../mermaid.js';
 import { renderDiff } from '../code.js';
+import { closeButton } from '../close.js';
 import { linesView } from '../lines.js';
 import { jsonTree, table } from '../file.js';
 import { startInk, marksSvg } from '../ink.js';
@@ -118,7 +119,8 @@ function render() {
     <div class="rv-intro"></div>
     <div class="rv-progress" id="rv-progress"></div>
     ${view.data.errors.length ? `<details class="problems"><summary>${icon('warning', 16)} ${view.data.errors.length} problem${view.data.errors.length === 1 ? '' : 's'} in this review's file (the agent can fix them: <code>hitl validate ${esc(view.id)}</code>)</summary><ul>${view.data.errors.map((e) => `<li>${esc(e)}</li>`).join('')}</ul></details>` : ''}
-    ${r.status === 'closed' ? `<p class="rv-closed">${icon('check', 14)} The agent closed this ${r.mode === 'approve' ? 'question' : 'review'}.</p>` : ''}
+    ${r.status === 'closed' ? `<p class="rv-closed">${icon('check', 14)} Closed: ${r.mode === 'approve' ? 'this question' : 'this review'} isn't waiting for you.</p>` : ''}
+    ${ro() ? '' : `<p class="rv-close-row">${closeButton('review', view.key, view.id, r.status === 'closed')}</p>`}
   </header>
   ${items().length && !isGate() ? `<div class="rv-tools" id="rv-tools"></div>` : ''}
   <div class="rv-items" id="rv-items"></div>
