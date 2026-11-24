@@ -15,6 +15,7 @@ import { linesView } from '../lines.js';
 import { jsonTree, table } from '../file.js';
 import { startInk, marksSvg } from '../ink.js';
 import { photoInputHtml, readPhotos, photosHtml } from '../photos.js';
+import { addSelectionTarget, lineSpan, linesLabel, quoteMd } from '../selcomment.js';
 
 const IMAGE = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg', 'bmp', 'ico']);
 const VIDEO = new Set(['mp4', 'm4v', 'webm', 'ogv', 'mov']);
@@ -563,8 +564,9 @@ function paintPicMarks(card, it) {
 
 function whereLabel(c, it) {
   if (c.strokes?.length) return `<span class="pin static ${c.status}">${areaNo(it, c)}</span> Marked area`;
-  if (c.line) return `${c.side === 'old' ? 'Removed ' : ''}${c.endLine && c.endLine !== c.line ? `lines ${c.line}–${c.endLine}` : `line ${c.line}`}`;
-  if (c.quote) return 'On the selection';
+  const file = c.selected && it?.file ? `${esc(it.file)} · ` : '';
+  if (c.line) return `${file}${c.side === 'old' ? 'Removed ' : ''}${c.endLine && c.endLine !== c.line ? `lines ${c.line}–${c.endLine}` : `line ${c.line}`}${c.selected ? ' · selection' : ''}`;
+  if (c.quote) return `${file}On the selection`;
   return '';
 }
 
@@ -579,7 +581,7 @@ function threadHtml(c, it) {
   return `<div class="cmt rv-cmt${done ? ' resolved' : ''}${agent ? ' agent' : ''}" data-cid="${esc(c.id)}">
   <div class="cmt-head"><b>${agent ? `${icon('sparkles', 13)} agent` : 'You'}</b>${w ? `<span class="where">${w}</span>` : ''}<span class="faint">${ago(Date.parse(c.at))}</span>${done ? '<span class="pill ok">Resolved</span>' : ''}${stale ? '<span class="pill">item changed since</span>' : ''}
   ${ro() ? '' : `<span class="cmt-acts"><button class="mini" data-cact="${done ? 'reopen' : 'resolve'}">${done ? icon('undo', 14) + ' Reopen' : icon('check', 14) + ' Resolve'}</button>${agent ? '' : `<button class="mini" data-cact="edit" aria-label="Edit">${icon('edit', 14)}</button><button class="mini" data-cact="delete" aria-label="Delete">${icon('trash', 14)}</button>`}</span>`}</div>
-  ${c.quote && !c.line ? `<blockquote class="quote-sel">${esc(c.quote)}</blockquote>` : ''}
+  ${c.quote && (!c.line || c.selected) ? `<blockquote class="quote-sel">${esc(c.quote)}</blockquote>` : ''}
   ${c.body ? `<div class="cmt-body md">${markdownHtml(c.body, '')}</div>` : ''}
   ${c.marked ? `<a href="${esc(rawUrl(c.marked))}" target="_blank" rel="noopener"><img class="rimg" src="${esc(rawUrl(c.marked))}" alt="The marked area" loading="lazy"></a>` : ''}
   ${photosHtml((c.photos || []).map((p) => rawUrl(p)))}
@@ -1040,3 +1042,33 @@ export function grow(ta) {
 
 void copy;
 void purl;
+
+// ── comment on a selection: on the item it's in (and its lines), on the whole review, or a reply on a comment ──
+addSelectionTarget((range, node) => {
+  if (!view || !main?.isConnected || ro() || !main.contains(node) || !node.closest('.rv-page')) return null;
+  const thread = node.closest('.rv-cmt[data-cid]');
+  if (thread) {
+    const cid = thread.dataset.cid;
+    return {
+      where: 'a reply to this comment',
+      submit: async ({ body, quote }) => {
+        await post('reply', { cid, body: `${quoteMd(quote)}\n\n${body}` });
+        await refresh();
+        repaintAll();
+      },
+    };
+  }
+  const card = node.closest('.rv-item[data-item]');
+  const it = card ? items().find((x) => x.id === card.dataset.item) : null;
+  const span = it ? lineSpan(range, card.querySelector('.rv-body')) : null;
+  const name = it ? it.file || it.name || it.title : '';
+  const where = it ? `${name}${span ? ` · ${linesLabel(span)}` : ''}${name !== it.title ? ` (“${it.title}”)` : ''}` : `the whole ${isGate() ? 'question' : 'review'}`;
+  return {
+    where,
+    submit: async ({ body, photos, quote }) => {
+      await post('comment', { item: it?.id || '', body, photos, ...(span || {}), quote, selected: true });
+      await refresh();
+      repaintAll();
+    },
+  };
+});

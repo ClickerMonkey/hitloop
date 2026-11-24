@@ -65,7 +65,7 @@ For agents (and you), in a project folder (or -C <folder>):
   hitl show-set <set> [--full]                  a question set, one line per question
   hitl answers <set> [--new|--all|--unacked|--changed|--blocking|--open] [--ids a,b] [--peek] [--json]
   hitl notes [--new|--open|--all] [--peek]      notes the human wrote on files, lines, pictures
-  hitl reply <set> <question> <message…>        write on a question's thread
+  hitl reply <set> <question> <message…>        write on a question's thread (- for the whole set)
   hitl reply <review> <comment> <message…>      reply to a review comment (c12)
   hitl reply --note <id> <message…>             reply to a note
   hitl message <message…> [--path <file>] [--lines 10-20]
@@ -620,8 +620,8 @@ function reply(): void {
   if (p.reviews.has(t)) {
     if (id && /^c\d+$/.test(id)) p.reviews.reply(t, id, 'agent', msg);
     else p.reviews.comment(t, { item: id ?? '', body: msg }, 'agent');
-  } else p.questions.message(t, need(id, 'question'), 'agent', msg);
-  console.log(`Replied on ${id}.`);
+  } else p.questions.message(t, id === '-' ? '' : need(id, 'question'), 'agent', msg);
+  console.log(`Replied on ${id === '-' ? 'the whole set' : id}.`);
 }
 
 // ── wait ──

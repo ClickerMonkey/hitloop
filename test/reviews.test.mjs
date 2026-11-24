@@ -650,3 +650,24 @@ test('the CLI: show, news, approve with a timeout, hooks, the stop gate', () => 
   assert.match(run('hooks'), /News hook: on\nStop hook: off/);
   assert.match(run('decisions', 'table'), /refused \("Never"\)/);
 });
+
+test('comments and notes on a selection keep the selected text and say so', () => {
+  const proot = path.join(tmp, 'sel');
+  fs.mkdirSync(path.join(proot, 'src'), { recursive: true });
+  fs.writeFileSync(path.join(proot, 'src', 'a.ts'), 'one\ntwo\nthree\n');
+  const r = new Reviews(proot);
+  const { id } = r.create({ title: 'Selections' }, [{ id: 'code', code: 'alpha beta\ngamma', lang: 'js' }]);
+  const c = r.comment(id, { item: 'code', line: 1, quote: 'beta', selected: true, body: 'Why beta?' });
+  assert.deepEqual([c.line, c.quote, c.selected], [1, 'beta', true]);
+  const w = r.comment(id, { item: '', quote: 'Selections', selected: true, body: 'The title' });
+  assert.equal(w.selected, true);
+  const text = readFeedback(r, id, { filter: 'new' }).text;
+  assert.match(text, /comment c\d+ on code \(Code \(js\)\), line 1: "Why beta\?"\n  selected text: "beta"/);
+  assert.match(text, /on \(the whole review\): "The title"\n  selected text: "Selections"/);
+  const notes = new Notes(path.join(proot, '.hitl', 'notes'), proot);
+  const n = notes.add({ path: 'src/a.ts', line: 2, body: 'This word', author: 'Phil', quote: 'tw' });
+  assert.deepEqual([n.line, n.quote, n.selected], [2, 'tw', true]);
+  const plain = notes.add({ path: 'src/a.ts', line: 3, body: 'This line', author: 'Phil' });
+  assert.equal(plain.quote, 'three');
+  assert.equal(plain.selected, undefined);
+});

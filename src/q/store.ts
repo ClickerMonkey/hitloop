@@ -210,13 +210,14 @@ export class Questions {
     });
   }
 
-  /** A message on a question's thread, from the owner (the page) or the agent. */
-  message(id: string, qid: string, from: Message['from'], body: string): Message {
+  /** A message on a question's thread ("" for the whole set), from the owner (the page) or the agent; quote: the
+   * text the owner selected and wrote about. */
+  message(id: string, qid: string, from: Message['from'], body: string, quote = ''): Message {
     const l = this.mustLoad(id);
-    if (!questionById(l.set, qid)) throw new StoreError(`No question "${qid}" in "${id}"`);
+    if (qid && !questionById(l.set, qid)) throw new StoreError(`No question "${qid}" in "${id}"`);
     if (!body.trim()) throw new StoreError('The message is empty');
     return this.mutateAnswers(id, (af) => {
-      const m: Message = { from, body: body.slice(0, 20000), at: new Date().toISOString(), seq: ++af.seq };
+      const m: Message = { from, body: body.slice(0, 20000), ...(quote.trim() ? { quote: quote.trim().slice(0, 4000) } : {}), at: new Date().toISOString(), seq: ++af.seq };
       (af.threads[qid] ??= []).push(m);
       return m;
     });

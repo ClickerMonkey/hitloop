@@ -74,7 +74,7 @@ export function readFeedback(reviews: Reviews, id: string, opts: { filter?: Revi
   for (const c of fb.comments.filter(show)) {
     const w = whereText(c);
     lines.push(`- comment ${c.id} on ${label(c.item)}${w ? `, ${w}` : ''}${c.status === 'resolved' ? ' [resolved]' : ''}: "${c.body}"`);
-    if (c.quote) lines.push(`  about: ${JSON.stringify(c.quote.length > 300 ? c.quote.slice(0, 297) + '…' : c.quote)}`);
+    if (c.quote) lines.push(`  ${c.selected ? 'selected text' : 'about'}: ${JSON.stringify(c.quote.length > 300 ? c.quote.slice(0, 297) + '…' : c.quote)}`);
     if (c.marked) lines.push(`  marked-up picture: ${c.marked}`);
     for (const p of c.photos ?? []) lines.push(`  photo: ${p}`);
     for (const x of c.replies) if (filter !== 'new' || (x.seq > since && x.from === 'owner')) lines.push(`  ${x.from === 'owner' ? 'human' : 'you'}: "${x.body}"`);
@@ -98,7 +98,7 @@ export function readNotes(notes: Notes, opts: { filter?: 'new' | 'open' | 'all';
   for (const c of list) {
     const where = !c.path ? 'a note' : c.line ? `${c.path}:${c.line}${c.endLine ? '-' + c.endLine : ''}` : c.area ? `${c.path} (marked area ${c.area.w}×${c.area.h} at ${c.area.x},${c.area.y})` : c.path;
     lines.push(`- ${byAgent(c) ? 'your message' : 'note'} ${c.id} on ${where}${c.status === 'resolved' ? ' [resolved]' : ''}: "${c.body}"`);
-    if (c.quote) lines.push(`  lines: ${JSON.stringify(c.quote.length > 300 ? c.quote.slice(0, 297) + '…' : c.quote)}`);
+    if (c.quote) lines.push(`  ${c.selected ? 'selected text' : 'lines'}: ${JSON.stringify(c.quote.length > 300 ? c.quote.slice(0, 297) + '…' : c.quote)}`);
     if (c.image) lines.push(`  marked-up picture: .hitl/notes/${c.image}`);
     for (const p of c.photos ?? []) lines.push(`  photo: .hitl/notes/${p}`);
     for (const r of c.replies ?? []) if (filter !== 'new' || ((r.seq ?? 0) > readSeq && r.from !== 'agent' && r.author !== 'agent')) lines.push(`  ${r.from === 'agent' || r.author === 'agent' ? 'you' : 'human'}: "${r.body}"`);

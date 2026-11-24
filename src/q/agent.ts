@@ -84,6 +84,8 @@ export function readAnswers(project: Questions, id: string, query: AnswersQuery 
   };
   const ordered: { qid: string; q: Question | undefined }[] = allQuestions(set).map((q) => ({ qid: q.id, q }));
   for (const qid of Object.keys(af.answers)) if (!questionById(set, qid)) ordered.push({ qid, q: undefined });
+  // the thread on the whole set
+  if (af.threads['']?.length) ordered.push({ qid: '', q: undefined });
   const hits = ordered.filter(({ qid, q }) => matches(qid, af.answers[qid], q));
   const offset = Math.max(0, query.offset ?? 0);
   const limit = Math.min(500, Math.max(1, query.limit ?? 100));
@@ -99,17 +101,18 @@ export function readAnswers(project: Questions, id: string, query: AnswersQuery 
     if (sec && sec.id !== lastSection && sec.title) lines.push('', `## ${sec.title}`);
     lastSection = sec?.id ?? lastSection;
     const a = af.answers[qid];
-    const label = q && qmode !== 'none' ? `${qid} (${short(q, qmode)})` : qid;
+    const label = qid === '' ? '(the whole set)' : q && qmode !== 'none' ? `${qid} (${short(q, qmode)})` : qid;
     if (filter === 'open' && q) {
       const rec = recommendationText(q);
       lines.push(`- ${label}${q.priority === 'blocking' ? ' [blocking]' : ''}${a?.status === 'later' ? ' [later]' : ''}${rec ? ` — recommended: ${rec}` : ''}`);
       continue;
     }
     if (a) lines.push(compactLine(q, label, a, !!q && !vis.question(qid)));
-    else lines.push(`- ${label}: (not answered)`);
+    else lines.push(qid === '' ? `- ${label}:` : `- ${label}: (not answered)`);
     if (a?.ack && filter !== 'new') lines.push(`  applied: ${a.ack.note || 'yes'}`);
     for (const m of af.threads[qid] ?? []) {
       if (filter === 'new' && m.seq <= af.readSeq) continue;
+      if (m.quote) lines.push(`  ${m.from === 'owner' ? 'owner selected' : 'quoting'}: ${JSON.stringify(m.quote.length > 300 ? m.quote.slice(0, 297) + '…' : m.quote)}`);
       lines.push(`  ${m.from === 'owner' ? 'owner says' : 'you said'}: ${JSON.stringify(m.body)}`);
     }
   }
@@ -133,7 +136,8 @@ export function readAnswers(project: Questions, id: string, query: AnswersQuery 
       answer: af.answers[qid] ?? null,
       hidden: q ? !vis.question(qid) : undefined,
       changed: q && af.answers[qid] ? isStale(q, af.answers[qid]) : undefined,
-      removed: !q || undefined,
+      removed: (!q && qid !== '') || undefined,
+      whole: qid === '' || undefined,
       thread: af.threads[qid] ?? [],
     })),
   };

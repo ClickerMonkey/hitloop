@@ -172,7 +172,7 @@ function saveWith(q, ctx, card, patch, typing = false) {
 }
 
 export function flag(card, text, bad = false) {
-  const s = card.querySelector('.saved');
+  const s = card?.querySelector('.saved');
   if (!s) return;
   if (text === 'Saved') s.innerHTML = icon('check', 13) + 'Saved';
   else s.textContent = text;
@@ -401,11 +401,11 @@ function inputFor(q, a, el, ctx, disabled) {
 
 // ── the thread ──
 
-function drawThread(th, q, ctx) {
+export function drawThread(th, q, ctx) {
   const msgs = ctx.thread(q.id);
   th.innerHTML = `<div class="msgs">${
     msgs.length
-      ? msgs.map((m) => `<div class="msg ${m.from}"><div class="msg-who">${m.from === 'owner' ? 'You' : 'Agent'} · ${esc(ago(Date.parse(m.at)))}</div></div>`).join('')
+      ? msgs.map((m) => `<div class="msg ${m.from}"><div class="msg-who">${m.from === 'owner' ? 'You' : 'Agent'} · ${esc(ago(Date.parse(m.at)))}</div>${m.quote ? `<blockquote class="quote-sel">${esc(m.quote)}</blockquote>` : ''}</div>`).join('')
       : '<p class="muted small">Ask why, push back, or explain. The agent reads it and can answer here.</p>'
   }</div>${ctx.readOnly ? '' : `<form class="msg-form"><textarea rows="2" placeholder="Write to the agent…"></textarea><button class="btn primary small" type="submit">Send</button></form>`}`;
   th.querySelectorAll('.msg').forEach((el, i) => el.append(md(msgs[i].body, '', 'msg-body')));

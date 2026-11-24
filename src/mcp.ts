@@ -263,7 +263,7 @@ const tools: Tool[] = [
   },
   {
     name: 'reply',
-    description: "Write to the user: on a question's thread (set + id), on a review comment (review + comment), on a review as a whole or one item (review + item; a new comment from you), or on a note (note). They see it there.",
+    description: "Write to the user: on a question's thread (set + id; set alone for the thread on the whole set), on a review comment (review + comment), on a review as a whole or one item (review + item; a new comment from you), or on a note (note). They see it there.",
     inputSchema: {
       type: 'object',
       required: ['message'],
@@ -285,8 +285,8 @@ const tools: Tool[] = [
         const c = p.reviews.comment(str(a['review']), { item: str(a['item']), body: msg }, 'agent');
         return `Wrote ${c.id} on ${str(a['item']) || 'the review'}.`;
       }
-      p.questions.message(need(a['set'], 'set'), need(a['id'], 'id'), 'agent', msg);
-      return `Replied on ${str(a['id'])}.`;
+      p.questions.message(need(a['set'], 'set'), str(a['id']), 'agent', msg);
+      return `Replied on ${str(a['id']) || 'the whole set'}.`;
     },
   },
   {

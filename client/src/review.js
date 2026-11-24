@@ -5,8 +5,9 @@ import { photoInputHtml, readPhotos, photosHtml } from './photos.js';
 import { author, commentsOn, fileHref, loadComments, setSetting, state } from './state.js';
 import { markdownHtml as markdown } from './markdown.js';
 import { icon } from './icons.js';
+import { addSelectionTarget, quoteMd } from './selcomment.js';
 
-export const range = (c) => (c.line ? (c.endLine ? `L${c.line}–${c.endLine}` : `L${c.line}`) : c.strokes?.length ? `Area ${areaNumber(c)}` : c.path ? 'File' : 'Note');
+export const range = (c) => (c.line ? (c.endLine ? `L${c.line}–${c.endLine}` : `L${c.line}`) : c.strokes?.length ? `Area ${areaNumber(c)}` : c.selected ? 'Selection' : c.path ? 'File' : 'Note');
 
 /** an image comment's number: its place among the file's marked areas */
 export const areaNumber = (c) =>
@@ -32,6 +33,7 @@ export function threadHtml(c, folder) {
   return `<div class="cmt${done ? ' resolved' : ''}${agent ? ' agent' : ''}" data-cid="${esc(c.id)}">
   <div class="cmt-head"><b>${who}</b><span class="faint">${ago(Date.parse(c.createdAt))}</span>${done ? '<span class="pill ok">Resolved</span>' : ''}
   ${ro ? '' : `<span class="cmt-acts"><button class="mini" data-cact="${done ? 'reopen' : 'resolve'}" title="${done ? 'Reopen' : 'Resolve'}">${done ? icon('undo', 14) + ' Reopen' : icon('check', 14) + ' Resolve'}</button><button class="mini" data-cact="edit" title="Edit" aria-label="Edit">${icon('edit', 14)}</button><button class="mini" data-cact="delete" title="Delete" aria-label="Delete">${icon('trash', 14)}</button></span>`}</div>
+  ${c.selected && c.quote ? `<blockquote class="quote-sel">${esc(c.quote)}</blockquote>` : ''}
   <div class="cmt-body md">${markdown(c.body, folder)}</div>
   ${photosHtml((c.photos || []).map((p) => purl(`api/comments/${esc(c.id)}/photo/${esc(p.slice(p.lastIndexOf('/') + 1))}`)))}
   ${replies}
@@ -172,7 +174,7 @@ export function renderReviewPage(el, filter, go) {
       ([path, cs]) => `<section class="rgroup"><h3 class="group-title${path ? "" : " plain"}">${path ? `<a href="${fileHref(path)}">${esc(path)}</a>` : `${icon('chat', 15)} Not about a file`}<span class="faint">${cs.length}</span></h3>${cs
         .map(
           (c) => `<div class="rcard">${path ? `<div class="rwhere"><a class="pill" href="${fileHref(path, c.line ? { line: String(c.line) } : {})}">${range(c)}</a>${c.commit ? `<span class="faint">@ ${esc(c.commit)}</span>` : ''}</div>` : ''}${
-            c.quote ? `<pre class="quote">${esc(c.quote)}</pre>` : ''
+            c.quote && !c.selected ? `<pre class="quote">${esc(c.quote)}</pre>` : ''
           }${c.image ? `<a href="${fileHref(path)}"><img class="rimg" src="${purl(`api/comments/${esc(c.id)}/image.png`)}" alt="The marked area" loading="lazy"></a>` : ''}${threadHtml(c, path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '')}</div>`,
         )
         .join('')}</section>`,
@@ -213,3 +215,17 @@ export function updateReviewBadge() {
     b.hidden = !n;
   }
 }
+
+// ── comment on a selection inside a note's thread (in a file or on the Notes page): a reply that quotes it ──
+addSelectionTarget((range, node) => {
+  const t = node.closest('.cmt[data-cid]:not(.rv-cmt)');
+  if (!t || state.info.readOnly || !state.comments.some((c) => c.id === t.dataset.cid)) return null;
+  const c = state.comments.find((x) => x.id === t.dataset.cid);
+  return {
+    where: `a reply to the note${c.path ? ` on ${c.path}${c.line ? ':' + c.line : ''}` : ''}`,
+    submit: async ({ body, quote }) => {
+      await api(`api/comments/${c.id}/replies`, { method: 'POST', json: { body: `${quoteMd(quote)}\n\n${body}`, author: author() } });
+      await changed();
+    },
+  };
+});

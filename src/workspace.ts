@@ -384,6 +384,7 @@ export class Workspace {
         ...(marks.strokes ? { strokes: marks.strokes } : {}),
         ...(marks.snapshot ? { snapshot: marks.snapshot } : {}),
         ...(ph.length ? { photos: ph } : {}),
+        ...(str(b['quote']).trim() ? { quote: str(b['quote']) } : {}),
         ...(git && rel ? { commit: (await this.gitStatus().catch(() => undefined))?.head ?? '' } : {}),
       });
       return json(res, 201, c);
@@ -440,7 +441,7 @@ export class Workspace {
         return json(res, 200, { taken, answers: qs.answers(setId), summary: qs.summary(setId) });
       }
       case '/message':
-        return json(res, 200, { message: qs.message(setId, qid, 'owner', str(b['body'])) });
+        return json(res, 200, { message: qs.message(setId, qid, 'owner', str(b['body']), str(b['quote'])) });
       case '/close': {
         // the human dismisses a set (it stops waiting for them) or brings it back
         if (typeof b['closed'] !== 'boolean') return json(res, 400, { error: '{ closed: true | false }' });
@@ -515,6 +516,7 @@ export class Workspace {
           ...(posInt(b['endLine']) ? { endLine: posInt(b['endLine']) } : {}),
           ...(b['side'] === 'old' ? { side: 'old' as const } : {}),
           ...(str(b['quote']) ? { quote: str(b['quote']) } : {}),
+          ...(b['selected'] === true ? { selected: true } : {}),
           ...(marks.strokes ? { strokes: marks.strokes } : {}),
           ...(marks.area ? { area: marks.area } : {}),
           ...(marks.snapshotUrl ? { snapshot: marks.snapshotUrl } : {}),

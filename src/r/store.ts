@@ -47,6 +47,8 @@ export interface CommentInput {
   endLine?: number;
   side?: 'old';
   quote?: string;
+  /** the quote is what the human selected */
+  selected?: boolean;
   strokes?: number[][];
   area?: { x: number; y: number; w: number; h: number };
   /** the marked-up picture, a PNG data URL */
@@ -418,7 +420,10 @@ export class Reviews {
         if (input.endLine && input.endLine > c.line) c.endLine = Math.round(input.endLine);
         if (input.side === 'old') c.side = 'old';
       }
-      if (input.quote) c.quote = input.quote.slice(0, 4000);
+      if (input.quote) {
+        c.quote = input.quote.slice(0, 4000);
+        if (input.selected) c.selected = true;
+      }
       if (input.strokes?.length) {
         c.strokes = input.strokes;
         if (input.area) c.area = input.area;

@@ -1705,3 +1705,104 @@ body {
   height: 100%;
   pointer-events: none;
 }
+
+/* ── comment on a selection: the button by the selection, and its composer ── */
+.sel-btn {
+  position: fixed;
+  z-index: 80;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--grad, var(--accent));
+  color: #fff;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  box-shadow: 0 6px 18px oklch(0.4 0.15 280 / 0.35);
+  cursor: pointer;
+  animation: sel-in 0.14s var(--ease, ease-out);
+}
+.sel-btn[hidden] {
+  display: none;
+}
+.sel-btn:hover {
+  filter: brightness(1.08);
+}
+@keyframes sel-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
+  }
+}
+.sel-pop {
+  position: fixed;
+  z-index: 81;
+  width: min(440px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow), 0 12px 32px oklch(0.2 0.05 280 / 0.22);
+  overflow-x: hidden;
+}
+/* a coloured edge along the top */
+.sel-pop::before {
+  content: '';
+  position: sticky;
+  top: -10px;
+  display: block;
+  height: 3px;
+  margin: -10px -12px 0;
+  background: var(--grad, var(--accent));
+}
+.sel-pop.sheet {
+  left: 8px !important;
+  right: 8px;
+  top: auto !important;
+  bottom: calc(8px + var(--safe-bottom, 0px));
+  width: auto;
+  max-height: 70vh;
+}
+.sel-pop-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+  min-width: 0;
+}
+.sel-pop-head > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sel-pop-head b {
+  color: var(--text);
+  font-weight: 600;
+}
+.sel-quote {
+  max-height: 9.5em;
+  overflow: auto;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-xs);
+  border-left-color: oklch(0.6 0.19 285);
+}
+.sel-pop textarea {
+  width: 100%;
+  min-height: 56px;
+  resize: vertical;
+}
+.sel-pop .composer-acts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}

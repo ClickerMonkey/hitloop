@@ -30,8 +30,10 @@ export interface Comment {
   /** 1-based first line; absent for a note on the whole file */
   line?: number;
   endLine?: number;
-  /** the lines as they were when the note was left */
+  /** the lines as they were when the note was left, or the text the human selected */
   quote?: string;
+  /** the quote is text the human selected */
+  selected?: boolean;
   body: string;
   author: string;
   /** "agent" when the agent started it (a message to the human) */
@@ -194,7 +196,7 @@ export class Notes {
     });
   }
 
-  add(input: { path: string; line?: number; endLine?: number; body: string; author: string; from?: 'agent'; commit?: string; area?: Area; strokes?: number[][]; snapshot?: Buffer; photos?: string[] }): Comment {
+  add(input: { path: string; line?: number; endLine?: number; body: string; author: string; from?: 'agent'; commit?: string; area?: Area; strokes?: number[][]; snapshot?: Buffer; photos?: string[]; quote?: string }): Comment {
     return this.change(() => {
       const c: Comment = {
         id: crypto.randomBytes(4).toString('hex'),
@@ -211,6 +213,11 @@ export class Notes {
         if (input.endLine && input.endLine > input.line) c.endLine = input.endLine;
         const quote = this.quote(input.path, input.line, c.endLine ?? input.line);
         if (quote !== undefined) c.quote = quote;
+      }
+      if (input.quote?.trim()) {
+        // what the human selected (in the lines, or on a rendered page)
+        c.quote = input.quote.slice(0, 4000);
+        c.selected = true;
       }
       if (input.area) c.area = input.area;
       if (input.strokes?.length) c.strokes = input.strokes;
@@ -390,7 +397,8 @@ export function toMarkdown(comments: Comment[], jsonRel: string, { openOnly = fa
       }
       const where = !c.path ? 'note' : c.line ? `${c.path}:${c.line}${c.endLine ? '-' + c.endLine : ''}` : c.area ? `${c.path} (marked area)` : `${c.path} (whole file)`;
       out.push(`#### \`${where}\` — ${byAgent(c) ? `you, the agent${c.author !== 'agent' ? ` (${c.author})` : ''}` : c.author}${c.commit ? ` @ ${c.commit}` : ''} · id \`${c.id}\``, '');
-      if (c.quote) out.push('```' + langOf(c.path), c.quote, '```', '');
+      if (c.quote && c.selected) out.push('Selected text:', '', ...c.quote.split('\n').map((l) => '> ' + l), '');
+      else if (c.quote) out.push('```' + langOf(c.path), c.quote, '```', '');
       if (c.area) out.push(`Marked area: x ${c.area.x}, y ${c.area.y}, ${c.area.w} × ${c.area.h} px of the picture.` + (c.image ? ` The marks are drawn on a copy: ${c.image} (beside this file).` : ''), '');
       if (c.image) out.push(`![The marked area](${c.image})`, '');
       for (const p of c.photos ?? []) out.push(`![A photo](${p})`, '');

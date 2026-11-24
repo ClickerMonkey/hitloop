@@ -1,6 +1,7 @@
 // The opened file: a header, tabs that depend on its kind, and a viewer for each kind.
-import { $, api, ago, copy, esc, extOf, join, purl, rawUrl, size } from './util.js';
-import { LABEL, LETTER, commentsOn, href, isIgnored, load, nav, state, where } from './state.js';
+import { $, api, ago, copy, emit, esc, extOf, join, purl, rawUrl, size } from './util.js';
+import { LABEL, LETTER, author, commentsOn, href, isIgnored, load, loadComments, nav, state, where } from './state.js';
+import { addSelectionTarget, lineSpan, linesLabel } from './selcomment.js';
 import { paintMarks, wireImage } from './ink.js';
 import { codeBlockHtml, renderMarkdown } from './markdown.js';
 import { diffMarks, parseDiff, placeDiffThreads, placeThreads, renderCode, renderDiff } from './code.js';
@@ -458,3 +459,21 @@ function notebook(body, t, folder) {
   body.innerHTML = `<div class="nb">${cells.join('') || '<p class="note">An empty notebook.</p>'}</div>`;
   for (const m of body.querySelectorAll('[data-md]')) renderMarkdown(m, m.dataset.md, folder);
 }
+
+// ── comment on a selection in the open file: a note on the file, with the lines when it's in the code ──
+addSelectionTarget((range, node) => {
+  const pane = $('file');
+  const body = $('fbody');
+  if (!current.path || state.info.readOnly || !body?.contains(node) || !pane?.contains(body)) return null;
+  const path = current.path;
+  let span = lineSpan(range, body);
+  if (span?.side === 'old') span = null; // a removed line isn't in the file any more: a note on the file
+  return {
+    where: `${path}${span ? ` · ${linesLabel(span)}` : ''}`,
+    submit: async ({ body: text, photos, quote }) => {
+      await api('api/comments', { method: 'POST', json: { path, body: text, author: author(), quote, ...(span || {}), ...(photos.length ? { photos } : {}) } });
+      await loadComments();
+      emit('comments');
+    },
+  };
+});

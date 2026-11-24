@@ -4,7 +4,8 @@ import { $, api, esc, store, toast, copy, debounce, ago } from '../util.js';
 import { state, projectOf } from '../state.js';
 import { icon } from '../icons.js';
 import { md, renderBlocks, modal } from './blocks.js';
-import { renderQuestion, draw, refreshTop } from './question.js';
+import { renderQuestion, draw, refreshTop, drawThread } from './question.js';
+import { addSelectionTarget } from '../selcomment.js';
 import { closeButton } from '../close.js';
 import { visibility, summarise, allQuestions, isDone, isStale, recommendedAnswer, questionById } from '../../../src/q/model.ts';
 
@@ -153,10 +154,11 @@ const ctx = {
     delete view.data.answers.answers[qid];
     afterChange(qid, { redraw: true });
   },
-  async message(qid, body) {
-    const r = await api(`api/q/${encodeURIComponent(view.setId)}/message`, { method: 'POST', json: { id: qid, body } });
+  async message(qid, body, quote = '') {
+    const r = await api(`api/q/${encodeURIComponent(view.setId)}/message`, { method: 'POST', json: { id: qid, body, ...(quote ? { quote } : {}) } });
     (view.data.answers.threads[qid] ??= []).push(r.message);
-    redrawCard(qid, { threadOpen: true });
+    if (qid === '') paintWhole(true);
+    else redrawCard(qid, { threadOpen: true });
   },
   picked(qid) {
     if (view?.mode !== 'cards' || store('advance') === '0') return;
@@ -255,9 +257,30 @@ function renderSet() {
   const body = document.createElement('div');
   body.id = 'set-body';
   page.append(body);
+  // the thread on the whole set (what you select outside any question lands here too)
+  const whole = document.createElement('section');
+  whole.className = 'set-whole';
+  whole.id = 'set-whole';
+  page.append(whole);
   main.replaceChildren(page);
   paintTools();
   paintBody();
+  paintWhole();
+}
+
+/** the thread on the whole set: its messages, or a button to start one */
+function paintWhole(open = false) {
+  const box = $('set-whole');
+  if (!box || box.contains(document.activeElement)) return;
+  const msgs = ctx.thread('');
+  if (!msgs.length && !open) {
+    box.innerHTML = info.readOnly ? '' : `<button class="link-btn" data-whole-open>${icon('chat', 14)} Write to the agent about the whole set</button>`;
+    const b = box.querySelector('[data-whole-open]');
+    if (b) b.onclick = () => (paintWhole(true), box.querySelector('textarea')?.focus());
+    return;
+  }
+  box.innerHTML = `<h2 class="rv-h2">On the whole set</h2><div class="q-thread"></div>`;
+  drawThread(box.querySelector('.q-thread'), { id: '' }, ctx);
 }
 
 function paintTools() {
@@ -765,8 +788,21 @@ async function reloadSet() {
     if (card && !card.contains(document.activeElement)) redrawCard(q.id);
   }
   view.vis = before;
+  if ((old.answers.threads['']?.length || 0) !== (data.answers.threads['']?.length || 0)) paintWhole();
   afterChange(null, {});
 }
+
+// ── comment on a selection: on the question it's in (its thread), or on the whole set ──
+addSelectionTarget((range, node) => {
+  if (!view || !main?.isConnected || info.readOnly || !main.contains(node) || !node.closest('.set-page')) return null;
+  const card = node.closest('.q-card[data-q]');
+  const q = card ? questionById(view.data.set, card.dataset.q) : null;
+  const text = q ? q.question.replace(/\s+/g, ' ') : '';
+  return {
+    where: q ? `question ${q.id}: “${text.length > 60 ? text.slice(0, 57) + '…' : text}”` : 'the whole set',
+    submit: ({ body, quote }) => ctx.message(q ? q.id : '', body, quote),
+  };
+});
 
 /** the shell left this view */
 export function leaveSet() {

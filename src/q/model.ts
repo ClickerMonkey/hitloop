@@ -244,6 +244,8 @@ export interface Answer {
 export interface Message {
   from: 'owner' | 'agent';
   body: string;
+  /** the text the human selected and wrote about (a bit of the question, its content, or the set's intro) */
+  quote?: string;
   at: string;
   seq: number;
 }
@@ -255,6 +257,7 @@ export interface AnswerFile {
   /** the agent has read everything up to here */
   readSeq: number;
   answers: Record<string, Answer>;
+  /** each question's thread, by its id; "" is the thread on the whole set */
   threads: Record<string, Message[]>;
 }
 
@@ -737,6 +740,10 @@ export function compactLine(q: Question | undefined, id: string, a: Answer, hidd
 }
 
 /** The answers as a readable markdown file, grouped by section. */
+function messageMd(m: Message): string[] {
+  return [...(m.quote ? [`> ${m.quote.replace(/\n/g, '\n> ')}`, ''] : []), `- **${m.from === 'owner' ? 'Owner' : 'Agent'}:** ${m.body.replace(/\n/g, ' ')}`];
+}
+
 export function answersMarkdown(set: QSet, af: AnswerFile): string {
   const vis = visibility(set, af.answers);
   const s = summarise(set, af);
@@ -755,9 +762,13 @@ export function answersMarkdown(set: QSet, af: AnswerFile): string {
         if (flags.length) out.push('', `_(${flags.join('; ')})_`);
         if (a.ack) out.push('', `Applied: ${a.ack.note || 'yes'}`);
       }
-      for (const m of af.threads[q.id] ?? []) out.push('', `- **${m.from === 'owner' ? 'Owner' : 'Agent'}:** ${m.body.replace(/\n/g, ' ')}`);
+      for (const m of af.threads[q.id] ?? []) out.push('', ...messageMd(m));
       out.push('');
     }
+  }
+  if (af.threads['']?.length) {
+    out.push('## The whole set', '');
+    for (const m of af.threads['']) out.push(...messageMd(m), '');
   }
   const orphans = Object.keys(af.answers).filter((id) => !questionById(set, id));
   if (orphans.length) {

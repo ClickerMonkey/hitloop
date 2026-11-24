@@ -120,3 +120,20 @@ Built:
 5. One page: the inbox, project home, shared top bar and settings; inputs that grow; phone, tablet and desktop passes.
 6. Performance: windowed code view, highlighting off the main thread, cached listings.
 7. Hooks (optional), notifications, README, screenshots, tests, release workflow.
+
+## Decisions: comment on a selection (Phil, 2026-11-24)
+
+Phil's request: "Update hitloop so when doing reviews or anything that has any sort of review notes or anything when I
+select text on the screen I can comment on the selected text and it's applied to the notes of that object or global
+item. The selected text is shown maybe the line from what file and the comment I had."
+
+Built (`client/src/selcomment.js`, one resolver per page): selecting text shows a **Comment** button by the selection
+(below it on phones, under the system's copy menu); it opens a composer showing the selection and where it is.
+
+- Review: a comment on the item the text is in, with the file and lines when it's in code or a diff (`selected: true`,
+  `quote` = the selection); outside every item, on the whole review; inside a comment's thread, a reply quoting it.
+- Question set: a message on the question's thread with `quote`; outside every question, on the new thread on the whole
+  set (`threads[""]`; agents reply with `reply` set alone, or `hitl reply <set> - <message>`).
+- Files: a note on the open file with its lines when in code (`quote` = the selection, `selected: true`).
+- Notes (in a file or on the Notes page): a reply quoting the selection.
+- The agent sees `selected text: "…"` (reviews, notes) and `owner selected: "…"` (questions) in news.

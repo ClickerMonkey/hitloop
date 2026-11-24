@@ -162,6 +162,8 @@ export interface Comment {
   side?: 'old';
   /** the text it's about: the lines, or what was selected */
   quote?: string;
+  /** the quote is text the human selected (not just the lines they tapped) */
+  selected?: boolean;
   /** marks on a picture: strokes as [x, y, x, y, …] from 0 to 1, and the area they cover in the picture's pixels */
   strokes?: number[][];
   area?: { x: number; y: number; w: number; h: number };
@@ -514,7 +516,7 @@ export function feedbackMarkdown(review: Review, fb: Feedback): string {
     for (const c of cs) {
       const w = whereText(c);
       out.push(`- [${c.status === 'open' ? ' ' : 'x'}] \`${c.id}\`${w ? ` (${w})` : ''}: ${c.body.replace(/\n/g, '\n  ')}`);
-      if (c.quote) out.push(`  > ${c.quote.split('\n').slice(0, 12).join('\n  > ')}`);
+      if (c.quote) out.push(`  > ${c.selected ? '(selected) ' : ''}${c.quote.split('\n').slice(0, 12).join('\n  > ')}`);
       if (c.marked) out.push(`  ![marked](../../${c.marked})`);
       for (const p of c.photos ?? []) out.push(`  ![photo](../../${p})`);
       for (const r of c.replies) out.push(`  - ${r.from === 'owner' ? 'human' : 'agent'}: ${r.body.replace(/\n/g, '\n    ')}`);

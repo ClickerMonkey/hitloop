@@ -460,3 +460,20 @@ test('a nested base path: the page, assets, chunks, files, answers and live even
     await running.close();
   }
 });
+
+test('a message can quote what the owner selected, and the whole set has its own thread', () => {
+  const p = new Questions(demo);
+  p.message('weather-plan', 'care', 'owner', 'What does this word mean?', '  battery  ');
+  p.message('weather-plan', '', 'owner', 'The intro is unclear', 'first plan');
+  assert.throws(() => p.message('weather-plan', 'nope', 'owner', 'x'), /No question "nope"/);
+  const af = p.answers('weather-plan');
+  assert.equal(af.threads.care.at(-1).quote, 'battery');
+  assert.equal(af.threads[''][0].quote, 'first plan');
+  const r = readAnswers(p, 'weather-plan', { filter: 'new' });
+  assert.match(r.text, /owner selected: "battery"\n  owner says: "What does this word mean\?"/);
+  assert.match(r.text, /- \(the whole set\):\n  owner selected: "first plan"\n  owner says: "The intro is unclear"/);
+  assert.ok(r.data.answers.some((a) => a.whole && a.id === ''));
+  p.message('weather-plan', '', 'agent', 'I will reword it.');
+  assert.equal(p.answers('weather-plan').threads[''].length, 2);
+  assert.match(fs.readFileSync(path.join(demo, '.hitl', 'answers', 'weather-plan.md'), 'utf8'), /## The whole set\n\n> first plan/);
+});
